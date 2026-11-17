@@ -194,7 +194,7 @@ function setGraphicQuality(preset,announce=true){
   visualFX.quality=choice;
   save.settings.quality=choice;
   if(announce){persist();notify('Graphics: '+choice.toUpperCase());}
-  const el=$('graphicsLabel');if(el)el.textContent=choice.toUpperCase()+' GRAPHICS';
+  const el=$('graphicsLabel');if(el)el.textContent=choice.toUpperCase()+' GRAPHICS';const btn=$('qualityBtn');if(btn)btn.textContent='GRAPHICS: '+choice.toUpperCase();
 }
 function detailArch(x,z,rot=0){
   const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);g.rotation.y=rot;
@@ -253,12 +253,7 @@ function visualCombatPulse(dt){
     }
   }
 }
-const previousLoopVisual=loop;
-loop=function(){
-  // A single authoritative render loop is retained; hook visual changes inside it.
-  previousLoopVisual();
-  // Animation updates occur inside wrapped player/enemy update functions.
-};
+// Character animation updates are integrated through the existing single render loop.
 
 // v0.4 THE CONTRACT UPDATE — repeatable unlocked tiers and optional challenge modifiers.
 let selectedDepth=1,contract=null;
@@ -601,5 +596,6 @@ initScene=function(){
 };
 
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
+$('qualityBtn').onclick=()=>{const presets=['low','medium','high'];const next=presets[(presets.indexOf(visualFX.quality)+1)%presets.length];setGraphicQuality(next)};
 // Render a decorative 3D title backdrop so first load isn't a blank screen.
 const style=document.createElement('style');style.textContent='#game{background:linear-gradient(140deg,#12192b,#121421)}';document.head.appendChild(style);
