@@ -74,3 +74,10 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #modelStatus{color:#cbb7f2;max-width:200px;letter-spacing:.06em}
 #combatStatus{border-left:2px solid #9b87cf}
 @media(max-width:850px){#modelStatus{font-size:9px}}
+
+/* v0.7 Shadows of the Deep */
+#branchHint{font-size:10px;color:#82cfd7;max-width:190px;line-height:1.5;letter-spacing:.08em}
+#bossPanel .boss-top{flex-wrap:wrap}
+#bossPhase{font-family:Inter,Arial,sans-serif;font-size:9px!important;color:#f7a46b!important;letter-spacing:1.5px;flex-basis:100%;padding-top:3px;text-align:center}
+#bossBarFill{transition:width .18s ease}
+#bossPanel{border-color:#e2a66bba}
