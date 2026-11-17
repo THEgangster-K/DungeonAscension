@@ -60,3 +60,12 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 .contract-summary{padding:17px;margin:16px 0;background:#181c2e;border-left:3px solid #ebc57f;color:#f2e2c7;font-weight:700}
 .contract-start{display:block;width:100%;padding:15px 22px;font-size:13px}
 @media(max-width:540px){.contract-option{flex-direction:column;align-items:flex-start}}
+
+/* Animated Depths v0.5: graphics controls and additional legibility */
+#graphicsLabel{color:#98d4b2;font-size:10px}
+#qualityBtn{border:1px solid #8299bd66;background:linear-gradient(125deg,#253650,#1b2338);color:#d7e8fa;letter-spacing:1px}
+#qualityBtn:hover{filter:brightness(1.18)}
+#targetPanel{transition:opacity .1s}
+#bossPanel{backdrop-filter:blur(8px)}
+#combatStatus{max-width:220px}
+@media(max-width:850px){#combatStatus{max-width:165px}}
