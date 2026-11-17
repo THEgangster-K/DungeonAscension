@@ -1,11 +1,20 @@
-# Dungeon Ascension — The Relic Update v0.3
+# Dungeon Ascension — Dungeon Contracts v0.4
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
 ## Play
 https://dungeonascension.onrender.com/
 
-## What's new in v0.3
+## What's new in v0.4
+- Dungeon portal now opens a tier and difficulty selection menu
+- Replay previously unlocked tiers to farm gear and gold
+- Three challenges: Explorer (100% rewards), Veteran (165%), Nightmare (230%)
+- Higher difficulties strengthen enemy health, damage, and sometimes speed
+- XP, gold, gems, and dungeon clear rewards scale with the chosen challenge
+- Contract HUD indicates current tier, challenge, and reward multiplier
+- Existing v0.1 save key and progression remain compatible
+
+## Previously added in v0.3
 - Relic shrines in dungeons offering one random run-only blessing: improved damage, reduced damage taken, better loot chance, or healing
 - Three additional room decoration themes: rune crystals, crypt niches, and rubble
 - Inventory bulk-sell tool for Common and Uncommon equipment, protecting equipped and Rare+ items
@@ -50,9 +59,12 @@ The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your sa
 Local storage is specific to the browser and device and can be erased by browser settings.
 
 ## Quality and limits
-v0.3 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
+v0.4 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
 
 ## Files
 - `index.html` — menus and HUD
 - `style.css` — layout and UI
 - `game.js` — gameplay, world generation, combat, equipment, saving
+
+## Contract gameplay
+Enter the purple hub portal and select any tier you have unlocked. Choose Explorer, Veteran, or Nightmare, then click **Enter Dungeon**. Temporary relic bonuses still apply for that run. Complete the boss and use the exit portal to return to the hub. Choosing earlier tiers will not reduce your highest unlocked tier.
