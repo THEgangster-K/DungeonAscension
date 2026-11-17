@@ -69,3 +69,8 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #bossPanel{backdrop-filter:blur(8px)}
 #combatStatus{max-width:220px}
 @media(max-width:850px){#combatStatus{max-width:165px}}
+
+/* v0.6 model loading state */
+#modelStatus{color:#cbb7f2;max-width:200px;letter-spacing:.06em}
+#combatStatus{border-left:2px solid #9b87cf}
+@media(max-width:850px){#modelStatus{font-size:9px}}
