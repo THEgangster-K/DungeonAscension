@@ -7,7 +7,7 @@ const SAVE_KEY='dungeon-ascension-v0.1';
 const VERSION=1;
 const tiers=[{name:'Common',color:'#b8b9c5',weight:55,scale:1},{name:'Uncommon',color:'#68d88e',weight:25,scale:1.22},{name:'Rare',color:'#72a7ff',weight:12,scale:1.55},{name:'Epic',color:'#bd8dff',weight:6,scale:1.95},{name:'Legendary',color:'#f6bd58',weight:1.8,scale:2.6},{name:'Mythic',color:'#ff6d88',weight:.2,scale:3.5}];
 const names=['Rustbound','Emberguard','Stormforged','Moonfall','Oathkeeper','Ironclad','Starshard','Runemarked','Graveborn','Dawnbringer'];
-const defaultSave=()=>({version:VERSION,level:1,xp:0,gold:250,gems:0,maxHealth:110,health:110,attackUpgrade:0,healthUpgrade:0,armorUpgrade:0,critUpgrade:0,luckUpgrade:0,mastery:0,depth:1,clears:0,kills:0,bossKills:0,inventory:[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}],equipped:{weapon:'starter',armor:null},questRewardClaimed:0,settings:{quality:'medium',camera:'third'},created:Date.now()});
+const defaultSave=()=>({version:VERSION,level:1,xp:0,gold:250,gems:0,maxHealth:110,health:110,attackUpgrade:0,healthUpgrade:0,armorUpgrade:0,critUpgrade:0,luckUpgrade:0,mastery:0,depth:1,clears:0,kills:0,bossKills:0,inventory:[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}],equipped:{weapon:'starter',armor:null},questRewardClaimed:0,settings:{quality:'medium',camera:'third',models:'on'},created:Date.now()});
 let save=defaultSave();let noticeTime=0;let uid=0;let autoCombat=true;
 const nextXp=lv=>Math.round(85*Math.pow(lv,1.32));
 function cleanSave(s){if(!s||typeof s!=='object')return null;let d=defaultSave();for(const k of Object.keys(d))if(Object.prototype.hasOwnProperty.call(s,k))d[k]=s[k];d.version=VERSION;for(const k of ['level','xp','gold','gems','attackUpgrade','healthUpgrade','armorUpgrade','critUpgrade','luckUpgrade','mastery','depth','clears','kills','bossKills'])d[k]=clamp(Number(d[k])||0,0,1e10);d.level=Math.max(1,Math.floor(d.level));d.depth=clamp(Math.floor(d.depth),1,5);d.maxHealth=clamp(110+d.healthUpgrade*18,110,1e7);d.health=clamp(Number(d.health)||d.maxHealth,1,d.maxHealth);if(!Array.isArray(d.inventory))d.inventory=[];d.inventory=d.inventory.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&['weapon','armor'].includes(x.slot)).slice(0,120);if(!d.inventory.length)d.inventory=[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}];if(!d.equipped||typeof d.equipped!=='object')d.equipped={weapon:d.inventory[0].id,armor:null};for(const slot of ['weapon','armor'])if(!d.inventory.some(x=>x.id===d.equipped[slot]&&x.slot===slot))d.equipped[slot]=slot==='weapon'?d.inventory.find(x=>x.slot===slot)?.id||null:null;d.settings={...defaultSave().settings,...(d.settings||{})};return d;}
@@ -135,6 +135,7 @@ initScene=function(){
   previousInitSceneVisual();
   visualFX.hero=createArmature(player,'hero');
   visualFX.quality=save.settings?.quality||'medium';
+  const toggleButton=$('modelsBtn');if(toggleButton)toggleButton.textContent='3D CHARACTER MODELS: '+(save.settings.models==='off'?'OFF':'ON');
   setGraphicQuality(visualFX.quality,false);
 };
 const previousSpawnEnemyVisual=spawnEnemy;
@@ -673,8 +674,10 @@ function setActorAnimation(actor,key){
 }
 async function placeAssetModel(parent,key,actorTag){
   try{
+    if(save.settings.models==='off')return;
+    if(assetRuntime.actors.some(a=>a.root===parent))return;
     const data=await fetchAssetModel(key);
-    if(!data||!parent||(!parent.parent&&key!=='hero'))return;
+    if(!data||save.settings.models==='off'||!parent||(!parent.parent&&key!=='hero'))return;
     if(key!=='hero'&&!enemies.some(e=>e.g===parent&&e.alive))return;
     const sceneModel=assetRuntime.cloner(data.scene);
     sceneModel.traverse(obj=>{
@@ -707,6 +710,7 @@ function updateAssetActors(dt){
     if(a.key!=='hero'&&(!a.enemy?.alive||!enemies.includes(a.enemy))){
       a.mixer?.stopAllAction();assetRuntime.actors.splice(i,1);continue;
     }
+    if(save.settings.models==='off')continue;
     if(a.mixer)a.mixer.update(dt);
     if(a.key==='hero'){
       const moving=keys.has('w')||keys.has('a')||keys.has('s')||keys.has('d');
@@ -719,6 +723,25 @@ function updateAssetActors(dt){
     }
   }
 }
+
+function toggleAssetModels(){
+  const enabled=save.settings.models==='off';
+  save.settings.models=enabled?'on':'off';
+  for(const actor of assetRuntime.actors){
+    actor.model.visible=enabled;
+    for(const child of actor.root.children)if(child!==actor.model)child.visible=!enabled;
+    if(actor.key==='hero'&&sword)sword.visible=true;
+  }
+  if(enabled){
+    if(!assetRuntime.actors.some(a=>a.key==='hero'))void placeAssetModel(player,'hero',null);
+    for(const e of enemies)if(e.alive&&!assetRuntime.actors.some(a=>a.root===e.g))void placeAssetModel(e.g,e.type,e);
+  }
+  const button=$('modelsBtn');
+  if(button)button.textContent='3D CHARACTER MODELS: '+(enabled?'ON':'OFF');
+  assetRuntime.status=enabled?'3D MODEL MODE':'LIGHTWEIGHT CHARACTERS';
+  showAssetStatus();persist();notify(enabled?'Detailed models enabled':'Lightweight characters enabled');
+}
+
 const beforeSceneAsset=initScene;
 initScene=function(){
   beforeSceneAsset();
@@ -756,6 +779,7 @@ updateEnemies=function(dt){
 };
 
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
+$('modelsBtn').onclick=toggleAssetModels;
 $('qualityBtn').onclick=()=>{const presets=['low','medium','high'];const next=presets[(presets.indexOf(visualFX.quality)+1)%presets.length];setGraphicQuality(next)};
 // Render a decorative 3D title backdrop so first load isn't a blank screen.
 const style=document.createElement('style');style.textContent='#game{background:linear-gradient(140deg,#12192b,#121421)}';document.head.appendChild(style);
