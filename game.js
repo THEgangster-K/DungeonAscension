@@ -730,6 +730,11 @@ spawnEnemy=function(x,z,type){
   const e=enemies[enemies.length-1];
   if(e)void placeAssetModel(e.g,e.type,e);
 };
+const beforePlayerAsset=updatePlayer;
+updatePlayer=function(dt){
+  beforePlayerAsset(dt);
+  if(world!=='dungeon')updateAssetActors(dt);
+};
 const beforeEnemyAsset=updateEnemies;
 updateEnemies=function(dt){
   beforeEnemyAsset(dt); // preserves the v0.2 telegraphed combat AI
