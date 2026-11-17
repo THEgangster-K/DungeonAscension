@@ -1,11 +1,19 @@
-# Dungeon Ascension — Living Dungeons v0.6
+# Dungeon Ascension — Shadows of the Deep v0.7
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
 ## Play
 https://dungeonascension.onrender.com/
 
-## What's new in v0.6
+## What's new in v0.7
+- Accessible side chambers branch off selected dungeon rooms, with real openings in the original wall layout
+- Optional treasure side paths, some guarded by additional enemies
+- New Guardian Shockwave attack with a larger visible telegraph and extra reaction time
+- Phase-two Guardian summons two sentinels, alongside its existing speed and damage increases
+- Boss phase indicator in the HUD and side-chamber count display
+- Original save key, dungeon contracts, relics, crafting, equipment, character models, and controls preserved
+
+## Previously added in v0.6
 - Animated character model loading via glTF, replacing procedural visuals for the hero and dungeon enemies when loading succeeds
 - CC0 Quaternius-derived knight, skeleton and demon models, loaded from the public Warptracker GitHub asset collection
 - Animated idle and movement states where included in the source models
@@ -76,7 +84,7 @@ The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your sa
 Local storage is specific to the browser and device and can be erased by browser settings.
 
 ## Quality and limits
-v0.6 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
+v0.7 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
 
 ## Files
 - `index.html` — menus and HUD
@@ -97,3 +105,9 @@ These optional models are loaded at runtime from `https://raw.githubusercontent.
 
 ## v0.6 testing and limitations
 Static checks confirm JavaScript syntax, import-map presence, UI integration, old save-key preservation, and model fallback wiring. Live browser gameplay, animation transitions, model load success on all devices, and frame rate have NOT been fully verified. Use **Esc → 3D Character Models** to switch to lighter graphics if needed. Imported assets improve character shapes but room layouts still use the original template-based system.
+
+## v0.7 dungeon and boss notes
+Optional side chambers connect to alternating main chambers through a wide doorway. They may contain guarded treasure or quieter loot opportunities. Continue along the central passage to find the Bone Guardian. During the boss encounter, larger circular warning areas indicate a shockwave: move outside the marked circle or dodge before the attack lands. At half health, the Guardian summons additional enemies. Earlier contracts and dungeon tiers remain replayable.
+
+## v0.7 verification
+JavaScript syntax and integration checks pass; all required site assets remain linked, including saved progress compatibility. A completed browser gameplay session and device-specific FPS measurements are **not** available from these checks. The previous glTF model CDN dependency remains optional and can be disabled using the pause-menu toggle.
