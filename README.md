@@ -1,11 +1,18 @@
-# Dungeon Ascension — Dungeon Reforged v0.2
+# Dungeon Ascension — The Relic Update v0.3
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
 ## Play
 https://dungeonascension.onrender.com/
 
-## What's new in v0.2
+## What's new in v0.3
+- Relic shrines in dungeons offering one random run-only blessing: improved damage, reduced damage taken, better loot chance, or healing
+- Three additional room decoration themes: rune crystals, crypt niches, and rubble
+- Inventory bulk-sell tool for Common and Uncommon equipment, protecting equipped and Rare+ items
+- Relic blessing indicator in the HUD
+- Prevent repeated T key events rapidly toggling automatic attacks
+
+## Previously added in v0.2
 - Enemy attack telegraphs before damage, with an opportunity to dodge out of the warned area
 - Bone Guardian phase two below half health, visible boss health HUD
 - Additional bone archer enemy variant with targeted attack warnings
@@ -38,12 +45,12 @@ Run a local static server in this directory (for example `python -m http.server 
 Static site on Render. Publish directory: `.`; build command: `echo "No build required"`. GitHub pushes to `main` automatically deploy if auto-deploy is on.
 
 ## Save compatibility
-The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your saved level, XP, currencies, items, equipped equipment, upgrades and dungeon progress are preserved. Additional v0.2 fields default to zero when loading older saves. Use **Pause → Export Save** to create a backup.
+The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your saved level, XP, currencies, items, equipped equipment, upgrades and dungeon progress are preserved. Additional progression fields default to zero when loading older saves. Use **Pause → Export Save** to create a backup.
 
 Local storage is specific to the browser and device and can be erased by browser settings.
 
 ## Quality and limits
-v0.2 adds a much richer prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
+v0.3 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
 
 ## Files
 - `index.html` — menus and HUD
