@@ -102,7 +102,165 @@ function detailBrazier(x,z){
 }
 
 
- // v0.4 THE CONTRACT UPDATE — repeatable unlocked tiers and optional challenge modifiers.
+ 
+// v0.5 VISUAL & COMBAT FEEL: procedural articulated rigs and optional graphic presets.
+const visualFX={playerStride:0,flash:[],lastPlayerX:0,lastPlayerZ:0,quality:'medium',roomProps:[],pulseClock:0};
+const shadeSteel=new THREE.MeshStandardMaterial({color:0x78829a,metalness:.65,roughness:.38});
+const shadeLeather=new THREE.MeshStandardMaterial({color:0x4e3540,roughness:.9});
+const shadeEmber=new THREE.MeshBasicMaterial({color:0xffa85b});
+function createArmature(parent,type){
+  const hero=type==='hero',boss=type==='boss';
+  const size=hero?1:boss?1.2:1;
+  const armature=new THREE.Group(); parent.add(armature);
+  const joint=(sx,sy,sz)=>{const g=new THREE.Group();g.position.set(sx,sy,sz);armature.add(g);return g};
+  const leftArm=joint(-.56*size,1.37,0),rightArm=joint(.56*size,1.37,0);
+  const leftLeg=joint(-.24*size,.67,0),rightLeg=joint(.24*size,.67,0);
+  for(const [arm,x] of [[leftArm,-1],[rightArm,1]]){
+    const sleeve=mesh(new THREE.CapsuleGeometry(.145*size,.37*size,4,6),hero?shadeSteel:shadeLeather,arm);
+    sleeve.position.y=-.27*size;sleeve.rotation.z=-x*.16;
+    const glove=mesh(new THREE.DodecahedronGeometry(.14*size),shadeSteel,arm);glove.position.y=-.58*size;
+  }
+  for(const leg of [leftLeg,rightLeg]){
+    const shin=mesh(new THREE.CapsuleGeometry(.17*size,.38*size,4,6),shadeLeather,leg);shin.position.y=-.27*size;
+    const boot=mesh(new THREE.BoxGeometry(.35*size,.23*size,.52*size),shadeSteel,leg);boot.position.set(0,-.59*size,.11*size);
+  }
+  const tabard=mesh(new THREE.BoxGeometry(.63*size,.72*size,.10),hero?velvet:midnight,armature);
+  tabard.position.set(0,.88*size,.37*size);
+  const belt=mesh(new THREE.TorusGeometry(.42*size,.055*size,5,12,Math.PI),bronze,armature);
+  belt.position.y=1.05*size;belt.rotation.x=Math.PI/2;
+  return {armature,leftArm,rightArm,leftLeg,rightLeg,tabard,phase:Math.random()*Math.PI*2};
+}
+const previousInitSceneVisual=initScene;
+initScene=function(){
+  previousInitSceneVisual();
+  visualFX.hero=createArmature(player,'hero');
+  visualFX.quality=save.settings?.quality||'medium';
+  setGraphicQuality(visualFX.quality,false);
+};
+const previousSpawnEnemyVisual=spawnEnemy;
+spawnEnemy=function(x,z,type){
+  previousSpawnEnemyVisual(x,z,type);
+  const e=enemies[enemies.length-1];
+  if(!e)return;
+  e.animation=createArmature(e.g,type);
+  e.animClock=Math.random()*6.28;
+  e.lastAnimX=e.x;e.lastAnimZ=e.z;
+};
+const previousUpdatePlayerVisual=updatePlayer;
+updatePlayer=function(dt){
+  const beforeX=player.position.x,beforeZ=player.position.z;
+  previousUpdatePlayerVisual(dt);
+  if(!visualFX.hero)return;
+  const moved=Math.hypot(player.position.x-beforeX,player.position.z-beforeZ);
+  const moving=moved>.001,pace=moving?Math.min(1.4,moved/Math.max(dt,.001)/5):0;
+  visualFX.playerStride+=dt*(moving?10+pace*3:4);
+  const t=visualFX.playerStride;
+  const rig=visualFX.hero;
+  const sway=moving?Math.sin(t)*.58*pace:0;
+  rig.leftLeg.rotation.x=sway;
+  rig.rightLeg.rotation.x=-sway;
+  rig.leftArm.rotation.x=-sway*.65;
+  rig.rightArm.rotation.x=sway*.6+(attackTimer>.35?-.65:0);
+  rig.armature.rotation.z=(keys.has('a')?-.055:0)+(keys.has('d')?.055:0);
+  rig.tabard.rotation.x=.08+Math.sin(t*.65)*.045;
+  if(dodgeTime>0)rig.armature.rotation.x=Math.sin((.3-dodgeTime)/.3*Math.PI)*.36;
+  else rig.armature.rotation.x*=Math.max(0,1-dt*12);
+};
+const previousUpdateEnemyVisual=updateEnemies;
+updateEnemies=function(dt){
+  previousUpdateEnemyVisual(dt);
+  for(const e of enemies){
+    if(!e.alive||!e.animation)continue;
+    const moved=Math.hypot(e.x-e.lastAnimX,e.z-e.lastAnimZ);
+    e.lastAnimX=e.x;e.lastAnimZ=e.z;
+    const walking=moved>.002;
+    e.animClock+=dt*(walking?7.5:2.4);
+    const stride=walking?Math.sin(e.animClock+e.animation.phase)*.42:Math.sin(e.animClock)*.045;
+    e.animation.leftLeg.rotation.x=stride;
+    e.animation.rightLeg.rotation.x=-stride;
+    e.animation.leftArm.rotation.x=-stride*.65+(e.windup>0?-.9:0);
+    e.animation.rightArm.rotation.x=stride*.65+(e.windup>0?-1.25:e.attackFlash>0?.7:0);
+    e.animation.armature.rotation.z=(e.windup>0?.08*Math.sin(gameTick*18):0);
+    e.animation.tabard.rotation.x=.06+Math.sin(e.animClock*.7)*.06;
+  }
+};
+function setGraphicQuality(preset,announce=true){
+  if(!renderer)return;
+  const presets={low:{ratio:.8,fog:.75},medium:{ratio:1.1,fog:1},high:{ratio:1.55,fog:1.12}};
+  const choice=presets[preset]?preset:'medium',p=presets[choice];
+  const ratio=Math.min(window.devicePixelRatio||1,p.ratio);
+  renderer.setPixelRatio(ratio);
+  renderer.setSize(window.innerWidth,window.innerHeight,false);
+  visualFX.quality=choice;
+  save.settings.quality=choice;
+  if(announce){persist();notify('Graphics: '+choice.toUpperCase());}
+  const el=$('graphicsLabel');if(el)el.textContent=choice.toUpperCase()+' GRAPHICS';
+}
+function detailArch(x,z,rot=0){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);g.rotation.y=rot;
+  for(const side of [-1,1]){
+    box(.34,3.1,.48,carved,side*1.7,1.57,0,g);
+    cylinder(.39,.44,.24,bronze,side*1.7,3.1,0,g,8);
+  }
+  const curve=mesh(new THREE.TorusGeometry(1.68,.22,6,18,Math.PI),carved,g);
+  curve.position.y=3.05;
+  const crest=mesh(new THREE.OctahedronGeometry(.27),runeMat,g);crest.position.y=4.68;
+}
+function detailFloorPattern(x,z){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,.035,z);
+  const ring=mesh(new THREE.RingGeometry(1.25,1.31,28),bronze,g);ring.rotation.x=-Math.PI/2;
+  for(let n=0;n<8;n++){const a=n*Math.PI/4;const piece=box(.12,.022,.55,carved,Math.cos(a)*1.0,.013,Math.sin(a)*1.0,g);piece.rotation.y=-a}
+}
+const oldBuildDungeonVisual=buildDungeon;
+buildDungeon=function(){
+  oldBuildDungeonVisual();
+  for(let i=0;i<rooms.length;i++){
+    const z=rooms[i].z;
+    // Inset architecture makes each chamber look authored without blocking the centre path.
+    if(i>0){
+      for(const x of [-6.55,6.55])detailArch(x,z+(i%2?3:-3),Math.PI/2);
+      detailFloorPattern(0,z);
+    }
+    if(i>0&&i<rooms.length-1){
+      const type=(i+depth)%3;
+      if(type===0){
+        for(const x of [-4.8,4.8])for(const oz of [-4.5,4.5]){
+          const stoneSlab=box(.9,.17,1.6,stone2,x,.11,z+oz);
+          stoneSlab.rotation.y=i*.12;
+        }
+      }else if(type===1){
+        for(const x of [-7.5,7.5]){
+          box(.16,2.3,2.8,velvet,x,2.0,z);
+          const plate=mesh(new THREE.OctahedronGeometry(.36),goldMat);plate.position.set(x*.995,2.3,z);
+        }
+      }else{
+        for(let n=0;n<6;n++){
+          const a=n*Math.PI/3;
+          const marker=mesh(new THREE.OctahedronGeometry(.21),runeMat);
+          marker.position.set(Math.cos(a)*4.65,.23,z+Math.sin(a)*4.1);
+        }
+      }
+    }
+  }
+};
+function visualCombatPulse(dt){
+  visualFX.pulseClock+=dt;
+  for(const e of enemies){
+    if(!e.alive||!e.warning)continue;
+    if(e.windup>0){
+      const p=1+.05*Math.sin(gameTick*22);
+      e.warning.scale.setScalar((e.type==='boss'?1.1:1)*p);
+    }
+  }
+}
+const previousLoopVisual=loop;
+loop=function(){
+  // A single authoritative render loop is retained; hook visual changes inside it.
+  previousLoopVisual();
+  // Animation updates occur inside wrapped player/enemy update functions.
+};
+
+// v0.4 THE CONTRACT UPDATE — repeatable unlocked tiers and optional challenge modifiers.
 let selectedDepth=1,contract=null;
 const contractTypes=[
   {key:'explorer',name:'Explorer',description:'Standard enemies and steady rewards',health:1,damage:1,speed:1,reward:1},
