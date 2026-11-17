@@ -1,11 +1,20 @@
-# Dungeon Ascension — Animated Depths v0.5
+# Dungeon Ascension — Living Dungeons v0.6
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
 ## Play
 https://dungeonascension.onrender.com/
 
-## What's new in v0.5
+## What's new in v0.6
+- Animated character model loading via glTF, replacing procedural visuals for the hero and dungeon enemies when loading succeeds
+- CC0 Quaternius-derived knight, skeleton and demon models, loaded from the public Warptracker GitHub asset collection
+- Animated idle and movement states where included in the source models
+- Restored enemy limb animations after identifying an earlier AI override
+- Updated 3D model status on the HUD and a pause-menu toggle between detailed models and lightweight procedural graphics
+- Asynchronous model loading with fallback so missing third-party assets do not stop the game
+- Existing character data, contracts, relics, upgrades and original save key retained
+
+## Previously added in v0.5
 - Lightweight procedural arm/leg animation for the hero and enemies (walking, attacking and wind-ups)
 - Additional layered equipment visual details on characters
 - Dungeon arches, floor medallions and room-specific decorative features
@@ -67,7 +76,7 @@ The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your sa
 Local storage is specific to the browser and device and can be erased by browser settings.
 
 ## Quality and limits
-v0.5 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
+v0.6 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
 
 ## Files
 - `index.html` — menus and HUD
@@ -82,3 +91,9 @@ Open the pause menu (Esc) and click **Graphics** to cycle through Low, Medium an
 
 ## Current limitations
 Procedural animations and geometry are an improvement over static blocks but do not replace professionally authored 3D character models. Static hosting successfully deploying does not prove the gameplay is bug-free; browser playtesting remains necessary.
+
+## Animated 3D model sources and license
+These optional models are loaded at runtime from `https://raw.githubusercontent.com/ilrein/warptracker/main/public/models/`, specifically `knight.glb`, `skeleton.glb`, and `demon.glb`. They are derived from Quaternius's Animated Knight Pack, Animated Monster Pack, and Ultimate Monsters, all CC0. See the [source asset manifest](https://github.com/ilrein/warptracker/blob/main/ASSETS.md) and [Quaternius](https://quaternius.com/). The game does not redistribute model bytes in this repository. Third-party model downloads require network access; if unavailable, simpler existing geometry remains visible.
+
+## v0.6 testing and limitations
+Static checks confirm JavaScript syntax, import-map presence, UI integration, old save-key preservation, and model fallback wiring. Live browser gameplay, animation transitions, model load success on all devices, and frame rate have NOT been fully verified. Use **Esc → 3D Character Models** to switch to lighter graphics if needed. Imported assets improve character shapes but room layouts still use the original template-based system.
