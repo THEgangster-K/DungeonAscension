@@ -35,7 +35,7 @@ function clearWorld(){for(const child of [...scene.children])if(child!==playerRi
 function buildHub(){world='hub';clearWorld();scene.background=new THREE.Color(0x151b2b);scene.fog=new THREE.FogExp2(0x151b2b,.026);box(44,.6,44,floorMat,0,-.3,0);for(let i=-20;i<=20;i+=4){box(.035,.02,44,stone2,i,.02,0);box(44,.02,.035,stone2,0,.02,i)}addWall(0,-22,44,1);addWall(-22,0,1,44);addWall(22,0,1,44);addWall(0,22,44,1);for(let i of [-17,17])for(let j of [-17,17]){cylinder(.75,.85,4.5,stone,i,2.25,j);cylinder(.95,.95,.5,goldMat,i,4.5,j);makeTorch(i*.73,j*.73)}makeCrystal(-12,-7);makeCrystal(13,-13,0x53cba7,.7);makeCrystal(-12,12,0xc78adc,.75);makeMerchant(-7,2,'forge');makeMerchant(7,2,'craft');createPortal(0,-14,'enter');box(12,.12,4,stone2,0,.06,-9);for(let i=-2;i<=2;i++){cylinder(.22,.28,1.8,stone,0,.9,i*3.5+3);}
 player.position.set(0,0,10);yaw=0;pitch=.2;state='playing';save.health=clamp(save.health,1,save.maxHealth);notify('Welcome to the Adventurer’s Haven · E near the portal');updateUI();}
 function sRand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}
-function buildDungeon(){world='dungeon';clearWorld();seed=(Math.random()*4294967295)>>>0;depth=clamp(selectedDepth||save.depth,1,Math.max(1,save.depth));const roomCount=4+Math.min(depth,2);const width=18;const gap=7;const roomLength=15;const spacing=roomLength+gap;const total=roomCount*spacing;scene.background=new THREE.Color(0x0c1020);scene.fog=new THREE.FogExp2(0x111421,.035);for(let i=0;i<roomCount;i++){let z=-i*spacing, boss=i===roomCount-1;rooms.push({z,boss,cleared:false});box(width,.55,roomLength,floorMat,0,-.275,z);box(width,.02,.09,stone2,0,.012,z-roomLength/4);box(width,.02,.09,stone2,0,.012,z+roomLength/4);addWall(-width/2,z,.8,roomLength+1);addWall(width/2,z,.8,roomLength+1);if(i===0)addWall(0,z+roomLength/2,width,1);if(i===roomCount-1)addWall(0,z-roomLength/2,width,1);if(i<roomCount-1){const corridorZ=z-roomLength/2-gap/2;box(5,.55,gap+.5,floorMat,0,-.275,corridorZ);addWall(-2.5,corridorZ,.5,gap);addWall(2.5,corridorZ,.5,gap);addWall(-5.8,z-roomLength/2,width/2-5.9,.9);addWall(5.8,z-roomLength/2,width/2-5.9,.9);addWall(-5.8,z-roomLength/2-gap,width/2-5.9,.9);addWall(5.8,z-roomLength/2-gap,width/2-5.9,.9)}for(let s of [-1,1]){cylinder(.6,.65,4.3,stone,s*7,2.15,z+5);cylinder(.6,.65,4.3,stone,s*7,2.15,z-5);makeTorch(s*6.9,z+(i%2===0?3:-3));if(sRand()>.48)makeCrystal(s*(5+sRand()*2),z+(sRand()-.5)*9,i>2?0xd28c6e:0x9079e9,.48)}if(i>0){let count=boss?1:Math.min(2+Math.floor(depth/2)+Math.floor(i/2),5);for(let j=0;j<count;j++)spawnEnemy((sRand()-.5)*10,z+(sRand()-.5)*7,boss? 'boss':sRand()>.6?'brute':'skeleton')}if(i===Math.floor(roomCount/2)){spawnChest(5,z+3)}}let portalZ=-(roomCount-1)*spacing-4;createPortal(0,portalZ,'exit'); // exit can only be used after boss
+function buildDungeon(){world='dungeon';clearWorld();seed=(Math.random()*4294967295)>>>0;depth=clamp(selectedDepth||save.depth,1,Math.max(1,save.depth));const roomCount=4+Math.min(depth,2);const width=18;const gap=7;const roomLength=15;const spacing=roomLength+gap;const total=roomCount*spacing;scene.background=new THREE.Color(0x0c1020);scene.fog=new THREE.FogExp2(0x111421,.035);for(let i=0;i<roomCount;i++){let z=-i*spacing, boss=i===roomCount-1;rooms.push({z,boss,cleared:false});box(width,.55,roomLength,floorMat,0,-.275,z);box(width,.02,.09,stone2,0,.012,z-roomLength/4);box(width,.02,.09,stone2,0,.012,z+roomLength/4);if(i>0&&i<roomCount-1&&i%2===1){createSideChamber(i,z,width,roomLength)}else{addWall(-width/2,z,.8,roomLength+1);addWall(width/2,z,.8,roomLength+1);}if(i===0)addWall(0,z+roomLength/2,width,1);if(i===roomCount-1)addWall(0,z-roomLength/2,width,1);if(i<roomCount-1){const corridorZ=z-roomLength/2-gap/2;box(5,.55,gap+.5,floorMat,0,-.275,corridorZ);addWall(-2.5,corridorZ,.5,gap);addWall(2.5,corridorZ,.5,gap);addWall(-5.8,z-roomLength/2,width/2-5.9,.9);addWall(5.8,z-roomLength/2,width/2-5.9,.9);addWall(-5.8,z-roomLength/2-gap,width/2-5.9,.9);addWall(5.8,z-roomLength/2-gap,width/2-5.9,.9)}for(let s of [-1,1]){cylinder(.6,.65,4.3,stone,s*7,2.15,z+5);cylinder(.6,.65,4.3,stone,s*7,2.15,z-5);makeTorch(s*6.9,z+(i%2===0?3:-3));if(sRand()>.48)makeCrystal(s*(5+sRand()*2),z+(sRand()-.5)*9,i>2?0xd28c6e:0x9079e9,.48)}if(i>0){let count=boss?1:Math.min(2+Math.floor(depth/2)+Math.floor(i/2),5);for(let j=0;j<count;j++)spawnEnemy((sRand()-.5)*10,z+(sRand()-.5)*7,boss? 'boss':sRand()>.6?'brute':'skeleton')}if(i===Math.floor(roomCount/2)){spawnChest(5,z+3)}}let portalZ=-(roomCount-1)*spacing-4;createPortal(0,portalZ,'exit'); // exit can only be used after boss
 player.position.set(0,0,3.5);yaw=0;pitch=.16;state='playing';notify('Catacombs entered · Defeat the Bone Guardian');updateUI();}
 function enemyRig(type){let g=new THREE.Group();let isBoss=type==='boss',isBrute=type==='brute',scale=isBoss?1.78:isBrute?1.25:1;g.scale.setScalar(scale);const bone=mat(isBoss?0x797189:isBrute?0x6d7185:0xb3a99b),armor=mat(isBoss?0x48375d:isBrute?0x61566f:0x494b61),eye=new THREE.MeshBasicMaterial({color:isBoss?0xff5a86:0xffd886});cylinder(.39,.48,.9,armor,0,1.04,0,g);sphere(.31,bone,0,1.67,0,g);box(.65,.3,.52,armor,0,1.35,0,g);for(let sx of [-1,1]){cylinder(.13,.16,.72,bone,sx*.57,.95,0,g);cylinder(.15,.15,.8,bone,sx*.22,.36,0,g);sphere(.065,eye,sx*.13,1.72,.27,g)}let horn=mat(isBoss?0xaa8dc7:0x9a9190);if(isBoss)for(let sx of [-1,1]){let h=mesh(new THREE.ConeGeometry(.2,.6,5),horn,g);h.position.set(sx*.26,2.08,0);h.rotation.z=sx*.35}let blade=box(.13,.85,.12,isBoss?goldMat:stone2,.73,1.04,.15,g);blade.rotation.z=-.35;let aura=isBoss?sphere(.18,new THREE.MeshBasicMaterial({color:0xd26fff}),0,1.06,.48,g):null;return g}
 function spawnEnemy(x,z,type){let g=enemyRig(type);g.position.set(x,0,z);scene.add(g);let boss=type==='boss';let hp=(boss?390:type==='brute'?100:62)*Math.pow(1.48,depth-1);enemies.push({g,type,x,z,hp,max:hp,alive:true,speed:(boss?1.5:type==='brute'?1.7:2.2)+depth*.08,range:boss?2.2:1.5,damage:(boss?22:type==='brute'?12:8)*Math.pow(1.22,depth-1),cool:rand(0,2),attackFlash:0,roam:rand(0,5),dir:rand(0,6.28),phase:0});}
@@ -506,6 +506,7 @@ function refreshReforgedUI(){
   const auto=$('autoLabel');if(auto)auto.textContent=autoCombat?'AUTO ATTACK: ON':'AUTO ATTACK: OFF';
   const mastery=$('masteryLabel');if(mastery)mastery.textContent='MASTERY '+(save.mastery||0);
   const panel=$('bossPanel'),boss=enemies.find(e=>e.type==='boss'&&e.alive);
+  const phase=$('bossPhase');if(phase)phase.textContent=boss?(boss.phase?'PHASE II · ENRAGED':'PHASE I · AWAKENING'):'';
   if(panel){panel.classList.toggle('hidden',world!=='dungeon'||!boss);if(boss){$('bossBarFill').style.width=(100*Math.max(0,boss.hp)/boss.max).toFixed(1)+'%';$('bossHpText').textContent=Math.ceil(boss.hp)+' / '+Math.ceil(boss.max);}}
   const target=$('targetPanel'),e=reforged.target;
   if(target){const shown=world==='dungeon'&&e?.alive&&e.type!=='boss';target.classList.toggle('hidden',!shown);
@@ -520,18 +521,18 @@ function updateEnemyAI(dt){
     e.cool=Math.max(0,e.cool-dt);
     e.stunned=Math.max(0,(e.stunned||0)-dt);
     e.attackFlash=Math.max(0,e.attackFlash-dt);
-    if(e.type==='boss'&&e.hp<e.max*.5&&e.phase===0){e.phase=1;e.speed*=1.2;e.damage*=1.25;notify('THE GUARDIAN ENTERS PHASE TWO!')}
+    if(e.type==='boss'&&e.hp<e.max*.5&&e.phase===0){e.phase=1;e.speed*=1.2;e.damage*=1.20;notify('PHASE TWO · THE GUARDIAN CALLS ITS SENTINELS!');spawnGuardianSentinels(e)}
     if(e.windup>0){
       e.windup-=dt;
-      const opacity=Math.min(.65, .12+.53*(1-e.windup/(e.type==='boss'?.95:.6)));
+      const opacity=Math.min(.75, .12+.58*(1-e.windup/(e.type==='boss'?(e.attackStyle==='shockwave'?1.3:.95):.6)));
       e.warning.material.opacity=opacity;
       e.warning.position.set(e.targetX,.055,e.targetZ);
-      e.warning.scale.setScalar(e.type==='boss'?1.1:1);
+      e.warning.scale.setScalar(e.type==='boss'?(e.attackStyle==='shockwave'?1:1.1):1);
       if(e.windup<=0){
         e.warning.material.opacity=0;
         const targetDist=Math.hypot(px-e.targetX,pz-e.targetZ);
-        if(targetDist<(e.type==='boss'?3.3:e.type==='archer'?1.15:1.7))hurt(e.damage);
-        e.cool=e.type==='boss'?(e.phase?1.25:1.8):e.type==='archer'?2.15:1.35;
+        if(targetDist<(e.type==='boss'?(e.attackStyle==='shockwave'?4.2:3.3):e.type==='archer'?1.15:1.7))hurt(e.damage*(e.attackStyle==='shockwave'?1.12:1));
+        e.cool=e.type==='boss'?(e.phase?1.5:1.95):e.type==='archer'?2.15:1.35;
         e.attackFlash=.21;
       }
     }else if(e.stunned<=0&&d<16){
@@ -539,9 +540,10 @@ function updateEnemyAI(dt){
         const step=Math.min(d-e.range*.8,e.speed*dt),nx=e.x+dx/d*step,nz=e.z+dz/d*step;
         if(!collides(nx,nz)){e.x=nx;e.z=nz;}
       }else if(e.cool<=0){
-        e.windup=e.type==='boss'?.95:e.type==='archer'?.85:.6;
-        e.targetX=e.type==='archer'?px:e.x+dx/d*Math.min(d,e.type==='boss'?2.5:1.1);
-        e.targetZ=e.type==='archer'?pz:e.z+dz/d*Math.min(d,e.type==='boss'?2.5:1.1);
+        if(e.type==='boss'){e.attackCount=(e.attackCount||0)+1;e.attackStyle=(e.attackCount%3===0||e.phase>0&&e.attackCount%2===0)?'shockwave':'slam';if(e.attackStyle==='shockwave'){e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.15,4.2,48);notify('GUARDIAN SHOCKWAVE · MOVE OUT OF THE CIRCLE!')}else{e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.6,3.4,40)}}
+        e.windup=e.type==='boss'?(e.attackStyle==='shockwave'?1.3:.95):e.type==='archer'?.85:.6;
+        e.targetX=e.type==='archer'||e.type==='boss'&&e.attackStyle==='shockwave'?px:e.x+dx/d*Math.min(d,e.type==='boss'?2.5:1.1);
+        e.targetZ=e.type==='archer'||e.type==='boss'&&e.attackStyle==='shockwave'?pz:e.z+dz/d*Math.min(d,e.type==='boss'?2.5:1.1);
         if(e.type==='archer'){e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.25,1.15,32);}
         e.warning.position.set(e.targetX,.06,e.targetZ);e.warning.material.opacity=.19;
       }
@@ -596,6 +598,66 @@ initScene=function(){
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,existing==='low'?1:existing==='high'?1.5:1.25));
 };
 
+
+
+// v0.7: optional accessible side chambers, risk/reward treasures and boss reinforcements.
+let dungeonBranches=[];
+function createSideChamber(index,z,width,length){
+  const side=index%4===1?1:-1;
+  const gap=5.1;
+  // Keep a 5.1m central opening in the existing chamber's side wall.
+  const leftX=-width/2,rightX=width/2,segment=(length+1-gap)/2;
+  for(const x of [leftX,rightX]){
+    if(x*side>0){
+      addWall(x,z-(gap+segment)/2,.8,segment);
+      addWall(x,z+(gap+segment)/2,.8,segment);
+    }else addWall(x,z,.8,length+1);
+  }
+  const ax=side*(width/2+5.9),len=11.8,breadth=11.8;
+  box(breadth,.55,len,floorMat,ax,-.275,z);
+  addWall(ax+side*breadth/2,z,.8,len+1);
+  addWall(ax,z-len/2,breadth,.8);
+  addWall(ax,z+len/2,breadth,.8);
+  // Architectural clues to the optional branch.
+  detailArch(side*(width/2+1.4),z,0);
+  for(const dx of [-3.6,3.6])for(const dz of [-3.8,3.8])detailPillar(ax+dx,z+dz,index%3===0);
+  detailFloorPattern(ax,z);
+  const risk=sRand()>.47;
+  if(risk){
+    spawnEnemy(ax,z-2.1,index%3===0?'brute':'skeleton');
+    spawnChest(ax+side*2.4,z+2.4);
+  }else{
+    spawnChest(ax,z);
+    for(let j=0;j<3;j++)detailRubble(ax+rand(-3,3),z+rand(-3.5,3.5));
+  }
+  const arrow=mesh(new THREE.ConeGeometry(.33,.6,3),runeMat);
+  arrow.position.set(side*(width/2-1.7),.12,z);
+  arrow.rotation.z=side*Math.PI/2;
+  dungeonBranches.push({room:index,x:ax,z,risk});
+}
+function spawnGuardianSentinels(boss){
+  if(boss.sentinelsCalled)return;
+  boss.sentinelsCalled=true;
+  const positions=[[-3.5,3.2],[3.5,3.2]];
+  for(const [ox,oz] of positions){
+    const x=boss.x+ox,z=boss.z+oz;
+    if(!collides(x,z))spawnEnemy(x,z,ox<0?'skeleton':'brute');
+  }
+  floater('SENTINELS SUMMONED!','reward');
+}
+const beforeDungeonV7=buildDungeon;
+buildDungeon=function(){
+  dungeonBranches=[];
+  beforeDungeonV7();
+  const hint=$('branchHint');
+  if(hint)hint.textContent=dungeonBranches.length+' OPTIONAL SIDE CHAMBERS';
+};
+const beforeHubV7=buildHub;
+buildHub=function(){
+  beforeHubV7();
+  dungeonBranches=[];
+  const hint=$('branchHint');if(hint)hint.textContent='FIND HIDDEN TREASURES';
+};
 
 // v0.6 — Animated character assets and robust fallbacks.
 // Official CC0 Quaternius art redistributed in the Warptracker public asset collection.
