@@ -31,7 +31,7 @@ function makeTorch(x,z){const g=new THREE.Group();scene.add(g);g.position.set(x,
 function makeCrystal(x,z,color=0x8e86ed,size=1){const group=new THREE.Group();group.position.set(x,0,z);scene.add(group);const cry=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.65,metalness:.16,roughness:.32});for(let k=0;k<3;k++){let h=rand(.7,1.8)*size;let o=mesh(new THREE.ConeGeometry(rand(.2,.38)*size,h,5),cry,group);o.position.set(rand(-.42,.42)*size,h/2,rand(-.36,.36)*size);o.rotation.z=rand(-.23,.23)}light(color,1.6,10,x,1.7,z);return group}
 function createPortal(x,z,action){const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);cylinder(1.1,1.25,.4,stone2,0,.2,0,g,12);const arch=mesh(new THREE.TorusGeometry(1.43,.22,8,24,Math.PI),goldMat,g);arch.rotation.z=Math.PI/2;arch.position.y=1.43;const disk=mesh(new THREE.CircleGeometry(1.25,32),portalMat,g);disk.position.set(0,1.33,0);const frame=mesh(new THREE.TorusGeometry(1.23,.075,6,28),new THREE.MeshBasicMaterial({color:0xbc9bff}),g);frame.position.y=1.33;interactables.push({x,z,range:2.6,text:action==='enter'?'Enter Forgotten Catacombs':'Return to Adventurer’s Haven',action});return g}
 function makeMerchant(x,z,type){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);cylinder(.5,.7,.92,mat(type==='forge'?0x696475:0x3f7b8a),0,.92,0,g);sphere(.33,mat(0xd6a778),0,1.68,0,g);const hat=mesh(new THREE.ConeGeometry(.45,.5,8),mat(type==='forge'?0x73596d:0x365e69),g);hat.position.y=2.13;box(.7,.14,.22,stone2,0,.48,-.5,g);interactables.push({x,z,range:2.5,text:type==='forge'?'Open Blacksmith and Upgrades':'Open Inventory and Crafting',action:type});return g}
-function clearWorld(){for(const child of [...scene.children])if(child!==playerRig && child!==camera && child.type!=='AmbientLight' && child.type!=='HemisphereLight' && child.type!=='DirectionalLight'){scene.remove(child);child.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose()})};torches=[];enemies=[];loot=[];effects=[];walls=[];interactables=[];rooms=[];nearby=null;portal=null;bossDefeated=false;runKills=0;runGold=0;}
+function clearWorld(){for(const child of [...scene.children])if(child!==playerRig && child!==camera && child.type!=='AmbientLight' && child.type!=='HemisphereLight' && child.type!=='DirectionalLight'){scene.remove(child);child.traverse(o=>{if(o.isMesh&&o.geometry&&!o.userData.externalAsset)o.geometry.dispose()})};torches=[];enemies=[];loot=[];effects=[];walls=[];interactables=[];rooms=[];nearby=null;portal=null;bossDefeated=false;runKills=0;runGold=0;}
 function buildHub(){world='hub';clearWorld();scene.background=new THREE.Color(0x151b2b);scene.fog=new THREE.FogExp2(0x151b2b,.026);box(44,.6,44,floorMat,0,-.3,0);for(let i=-20;i<=20;i+=4){box(.035,.02,44,stone2,i,.02,0);box(44,.02,.035,stone2,0,.02,i)}addWall(0,-22,44,1);addWall(-22,0,1,44);addWall(22,0,1,44);addWall(0,22,44,1);for(let i of [-17,17])for(let j of [-17,17]){cylinder(.75,.85,4.5,stone,i,2.25,j);cylinder(.95,.95,.5,goldMat,i,4.5,j);makeTorch(i*.73,j*.73)}makeCrystal(-12,-7);makeCrystal(13,-13,0x53cba7,.7);makeCrystal(-12,12,0xc78adc,.75);makeMerchant(-7,2,'forge');makeMerchant(7,2,'craft');createPortal(0,-14,'enter');box(12,.12,4,stone2,0,.06,-9);for(let i=-2;i<=2;i++){cylinder(.22,.28,1.8,stone,0,.9,i*3.5+3);}
 player.position.set(0,0,10);yaw=0;pitch=.2;state='playing';save.health=clamp(save.health,1,save.maxHealth);notify('Welcome to the Adventurer’s Haven · E near the portal');updateUI();}
 function sRand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}
@@ -593,6 +593,161 @@ initScene=function(){
   // The player can choose performance preferences without breaking the original settings.
   const existing=save.settings?.quality||'medium';
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,existing==='low'?1:existing==='high'?1.5:1.25));
+};
+
+
+// v0.6 — Animated character assets and robust fallbacks.
+// Official CC0 Quaternius art redistributed in the Warptracker public asset collection.
+// Models load after gameplay starts, so failure never blocks the game.
+const ASSET_ORIGIN='https://raw.githubusercontent.com/ilrein/warptracker/main/public/models/';
+const RPG_MODELS={hero:'knight.glb',skeleton:'skeleton.glb',archer:'skeleton.glb',brute:'demon.glb',boss:'demon.glb'};
+const assetRuntime={loader:null,cloner:null,ready:false,loading:false,failed:false,promises:new Map(),actors:[],frame:0,status:'PROCEDURAL MODELS'};
+function showAssetStatus(){
+  const el=$('modelStatus');if(el)el.textContent=assetRuntime.status;
+}
+async function prepareModelLoader(){
+  if(assetRuntime.ready)return true;
+  if(assetRuntime.failed)return false;
+  if(assetRuntime.loading){
+    for(let tries=0;tries<35&&assetRuntime.loading;tries++)await new Promise(ok=>setTimeout(ok,100));
+    return assetRuntime.ready;
+  }
+  assetRuntime.loading=true;assetRuntime.status='LOADING ANIMATED MODELS';showAssetStatus();
+  try{
+    const [loadModule,cloneModule]=await Promise.all([
+      import('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/loaders/GLTFLoader.js'),
+      import('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/utils/SkeletonUtils.js')
+    ]);
+    assetRuntime.loader=new loadModule.GLTFLoader();
+    assetRuntime.cloner=cloneModule.clone;
+    assetRuntime.ready=true;
+    assetRuntime.status='3D MODELS ENABLED';
+    showAssetStatus();
+    return true;
+  }catch(err){
+    assetRuntime.failed=true;assetRuntime.status='PROCEDURAL FALLBACK';
+    console.warn('[Dungeon Ascension] Optional model loader failed:',err);
+    showAssetStatus();return false;
+  }finally{assetRuntime.loading=false}
+}
+async function fetchAssetModel(key){
+  if(!await prepareModelLoader())return null;
+  const path=RPG_MODELS[key]||RPG_MODELS.skeleton;
+  if(!assetRuntime.promises.has(path)){
+    const task=assetRuntime.loader.loadAsync(ASSET_ORIGIN+path).catch(err=>{
+      console.warn('[Dungeon Ascension] Missing optional model '+path,err);
+      return null;
+    });
+    assetRuntime.promises.set(path,task);
+  }
+  return assetRuntime.promises.get(path);
+}
+function fitModelToActor(model,targetHeight){
+  model.updateMatrixWorld(true);
+  const box3=new THREE.Box3().setFromObject(model);
+  const dims=new THREE.Vector3();box3.getSize(dims);
+  const height=Math.max(.001,dims.y);
+  const k=targetHeight/height;
+  model.scale.multiplyScalar(k);
+  model.position.x-=((box3.min.x+box3.max.x)*.5)*k;
+  model.position.y-=box3.min.y*k;
+  model.position.z-=((box3.min.z+box3.max.z)*.5)*k;
+}
+function setActorAnimation(actor,key){
+  if(!actor.mixer||!actor.clips?.length)return;
+  if(actor.state===key)return;
+  const variants={
+    idle:['idle','standing','survey','breath'],
+    walk:['walk','walking','run','running'],
+    attack:['attack','swing','hit','punch','slash'],
+    death:['death','die']
+  };
+  const terms=variants[key]||variants.idle;
+  const clip=actor.clips.find(c=>terms.some(t=>c.name.toLowerCase().includes(t)))||
+    actor.clips.find(c=>c.name.toLowerCase().includes('idle'))||actor.clips[0];
+  if(!clip)return;
+  const action=actor.mixer.clipAction(clip);
+  action.enabled=true;action.reset().play();
+  if(actor.action&&actor.action!==action)actor.action.crossFadeTo(action,.17,false);
+  actor.action=action;actor.state=key;
+}
+async function placeAssetModel(parent,key,actorTag){
+  try{
+    const data=await fetchAssetModel(key);
+    if(!data||!parent||(!parent.parent&&key!=='hero'))return;
+    if(key!=='hero'&&!enemies.some(e=>e.g===parent&&e.alive))return;
+    const sceneModel=assetRuntime.cloner(data.scene);
+    sceneModel.traverse(obj=>{
+      if(obj.isMesh){obj.castShadow=false;obj.receiveShadow=true;obj.userData.externalAsset=true;}
+    });
+    parent.add(sceneModel);
+    fitModelToActor(sceneModel,key==='hero'?2.15:key==='boss'?2.25:1.95);
+    const actor={
+      key,root:parent,model:sceneModel,enemy:actorTag,
+      mixer:data.animations?.length?new THREE.AnimationMixer(sceneModel):null,
+      clips:data.animations||[],state:'',action:null,lastX:parent.position.x,lastZ:parent.position.z
+    };
+    // Hide procedural artwork only after successful scene replacement.
+    for(const child of parent.children){
+      if(child===sceneModel)continue;
+      if(key==='hero'&&child===sword)continue;
+      child.visible=false;
+    }
+    if(key==='hero'&&sword)sword.visible=true;
+    assetRuntime.actors.push(actor);
+    if(actorTag)actorTag.externalVisual=actor;
+    setActorAnimation(actor,'idle');
+    assetRuntime.status='ANIMATED 3D ASSETS';showAssetStatus();
+  }catch(err){console.warn('[Dungeon Ascension] Model fallback for '+key,err);}
+}
+function updateAssetActors(dt){
+  assetRuntime.frame++;
+  for(let i=assetRuntime.actors.length-1;i>=0;i--){
+    const a=assetRuntime.actors[i];
+    if(a.key!=='hero'&&(!a.enemy?.alive||!enemies.includes(a.enemy))){
+      a.mixer?.stopAllAction();assetRuntime.actors.splice(i,1);continue;
+    }
+    if(a.mixer)a.mixer.update(dt);
+    if(a.key==='hero'){
+      const moving=keys.has('w')||keys.has('a')||keys.has('s')||keys.has('d');
+      setActorAnimation(a,moving?'walk':'idle');
+    }else{
+      const dx=a.root.position.x-a.lastX,dz=a.root.position.z-a.lastZ;
+      const moving=Math.hypot(dx,dz)>dt*.25;
+      setActorAnimation(a,a.enemy?.windup>0?'attack':moving?'walk':'idle');
+      a.lastX=a.root.position.x;a.lastZ=a.root.position.z;
+    }
+  }
+}
+const beforeSceneAsset=initScene;
+initScene=function(){
+  beforeSceneAsset();
+  void placeAssetModel(player,'hero',null);
+};
+const beforeSpawnAsset=spawnEnemy;
+spawnEnemy=function(x,z,type){
+  beforeSpawnAsset(x,z,type);
+  const e=enemies[enemies.length-1];
+  if(e)void placeAssetModel(e.g,e.type,e);
+};
+const beforeEnemyAsset=updateEnemies;
+updateEnemies=function(dt){
+  beforeEnemyAsset(dt); // preserves the v0.2 telegraphed combat AI
+  // Restore the animated armature updates previously overwritten by the v0.2 AI layer.
+  for(const e of enemies){
+    if(!e.alive||!e.animation)continue;
+    const dx=e.x-(e.lastAnimX??e.x),dz=e.z-(e.lastAnimZ??e.z);
+    const walking=Math.hypot(dx,dz)>.002;
+    e.lastAnimX=e.x;e.lastAnimZ=e.z;
+    e.animClock=(e.animClock||0)+dt*(walking?8:2);
+    const phase=e.animClock+e.animation.phase;
+    const swing=walking?Math.sin(phase)*.42:Math.sin(phase)*.03;
+    e.animation.leftLeg.rotation.x=swing;
+    e.animation.rightLeg.rotation.x=-swing;
+    e.animation.leftArm.rotation.x=-swing*.65+(e.windup>0?-.8:0);
+    e.animation.rightArm.rotation.x=swing*.65+(e.windup>0?-1:0);
+  }
+  updateAssetActors(dt);
 };
 
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
