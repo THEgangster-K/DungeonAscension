@@ -40,13 +40,13 @@ player.position.set(0,0,3.5);yaw=0;pitch=.16;state='playing';notify('Catacombs e
 function enemyRig(type){let g=new THREE.Group();let isBoss=type==='boss',isBrute=type==='brute',scale=isBoss?1.78:isBrute?1.25:1;g.scale.setScalar(scale);const bone=mat(isBoss?0x797189:isBrute?0x6d7185:0xb3a99b),armor=mat(isBoss?0x48375d:isBrute?0x61566f:0x494b61),eye=new THREE.MeshBasicMaterial({color:isBoss?0xff5a86:0xffd886});cylinder(.39,.48,.9,armor,0,1.04,0,g);sphere(.31,bone,0,1.67,0,g);box(.65,.3,.52,armor,0,1.35,0,g);for(let sx of [-1,1]){cylinder(.13,.16,.72,bone,sx*.57,.95,0,g);cylinder(.15,.15,.8,bone,sx*.22,.36,0,g);sphere(.065,eye,sx*.13,1.72,.27,g)}let horn=mat(isBoss?0xaa8dc7:0x9a9190);if(isBoss)for(let sx of [-1,1]){let h=mesh(new THREE.ConeGeometry(.2,.6,5),horn,g);h.position.set(sx*.26,2.08,0);h.rotation.z=sx*.35}let blade=box(.13,.85,.12,isBoss?goldMat:stone2,.73,1.04,.15,g);blade.rotation.z=-.35;let aura=isBoss?sphere(.18,new THREE.MeshBasicMaterial({color:0xd26fff}),0,1.06,.48,g):null;return g}
 function spawnEnemy(x,z,type){let g=enemyRig(type);g.position.set(x,0,z);scene.add(g);let boss=type==='boss';let hp=(boss?390:type==='brute'?100:62)*Math.pow(1.48,depth-1);enemies.push({g,type,x,z,hp,max:hp,alive:true,speed:(boss?1.5:type==='brute'?1.7:2.2)+depth*.08,range:boss?2.2:1.5,damage:(boss?22:type==='brute'?12:8)*Math.pow(1.22,depth-1),cool:rand(0,2),attackFlash:0,roam:rand(0,5),dir:rand(0,6.28),phase:0});}
 function spawnChest(x,z){let g=new THREE.Group();g.position.set(x,0,z);scene.add(g);box(1,.6,.7,mat(0x705136),0,.34,0,g);box(1.04,.18,.76,goldMat,0,.71,0,g);box(.13,.6,.8,goldMat,0,.42,0,g);interactables.push({x,z,range:2.3,text:'Open treasure chest',action:'chest',g,opened:false})}
-function calcAttack(){const equip=save.inventory.find(x=>x.id===save.equipped.weapon);return Math.floor(9+save.level*1.7+save.attackUpgrade*5+Math.min(25,Math.floor(save.mastery/30))+(equip?.power||0)+(equip?.bonus||0))}
+function calcAttack(){const equip=save.inventory.find(x=>x.id===save.equipped.weapon);return Math.floor(9+save.level*1.7+save.attackUpgrade*5+Math.min(25,Math.floor(save.mastery/30))+(runBlessing?.damage||0)+(equip?.power||0)+(equip?.bonus||0))}
 function calcArmor(){const equip=save.inventory.find(x=>x.id===save.equipped.armor);return Math.floor(save.armorUpgrade*3+save.level*.35+(equip?.power||0))}
 function gainXp(v){save.xp+=Math.max(0,Math.floor(v));let count=0;while(save.xp>=nextXp(save.level)&&count++<20){save.xp-=nextXp(save.level);save.level++;save.maxHealth+=0;save.health=Math.min(save.maxHealth,save.health+25);floater('LEVEL UP!','reward');notify(`LEVEL ${save.level} · Your power is growing`)}updateUI()}
-function dropItem(type='enemy'){const rate=type==='boss'?1:Math.min(.42,.20+save.luckUpgrade*.025);if(Math.random()>rate)return null;let roll=rand(0,100),tier=0;for(const t of tiers){roll-=t.weight;if(roll<=0)break;tier++}tier=clamp(tier,0,5);const slot=Math.random()<.72?'weapon':'armor';const name=`${names[Math.floor(Math.random()*names.length)]} ${slot==='weapon'?'Blade':'Mail'}`;const item={id:`i${Date.now().toString(36)}${(uid++).toString(36)}`,name,slot,tier,power:Math.round((slot==='weapon'?6:3)*(1+depth*.55)*tiers[tier].scale+rand(1,6)),bonus:tier>=2?Math.floor(rand(1,5)*tier):0};if(save.inventory.length>=100){save.gold+=Math.ceil(15*tiers[tier].scale);notify('Inventory full · Loot converted to gold');return null}save.inventory.push(item);floater(`✦ ${tiers[tier].name} ${slot}!`,'reward');notify(`${tiers[tier].name} ${name} obtained!`);persist();return item}
+function dropItem(type='enemy'){const rate=type==='boss'?1:Math.min(.42,.20+save.luckUpgrade*.025+(runBlessing?.loot||0));if(Math.random()>rate)return null;let roll=rand(0,100),tier=0;for(const t of tiers){roll-=t.weight;if(roll<=0)break;tier++}tier=clamp(tier,0,5);const slot=Math.random()<.72?'weapon':'armor';const name=`${names[Math.floor(Math.random()*names.length)]} ${slot==='weapon'?'Blade':'Mail'}`;const item={id:`i${Date.now().toString(36)}${(uid++).toString(36)}`,name,slot,tier,power:Math.round((slot==='weapon'?6:3)*(1+depth*.55)*tiers[tier].scale+rand(1,6)),bonus:tier>=2?Math.floor(rand(1,5)*tier):0};if(save.inventory.length>=100){save.gold+=Math.ceil(15*tiers[tier].scale);notify('Inventory full · Loot converted to gold');return null}save.inventory.push(item);floater(`✦ ${tiers[tier].name} ${slot}!`,'reward');notify(`${tiers[tier].name} ${name} obtained!`);persist();return item}
 function defeatEnemy(e){e.alive=false;e.g.visible=false;let amt=Math.floor((e.type==='boss'?250: e.type==='brute'?55:25)*Math.pow(1.75,depth-1));let exp=Math.floor((e.type==='boss'?175:e.type==='brute'?43:22)*Math.pow(1.55,depth-1));save.gold+=amt;runGold+=amt;save.kills++;save.mastery++;runKills++;gainXp(exp);floater(`+${amt} Gold`,'reward');dropItem(e.type==='boss'?'boss':'enemy');if(e.type==='boss'){bossDefeated=true;save.bossKills++;save.clears++;save.gems+=2+depth;save.depth=Math.min(5,Math.max(save.depth,depth+1));notify(`BOSS DEFEATED! +${2+depth} Gems · Exit portal unlocked`);persist()}updateUI()}
 function damageEnemy(e,n,critChance=.12){if(!e.alive)return;const crit=Math.random()<Math.min(.55,critChance+save.critUpgrade*.018);const dmg=Math.round(n*(crit?1.65:1)*rand(.9,1.1));e.hp-=dmg;e.attackFlash=.18;floater(`${crit?'CRIT ':''}${dmg}`,crit?'crit':'');if(e.hp<=0)defeatEnemy(e)}
-function hurt(n){if(invulnerable>0||state!=='playing'||save.health<=0)return;let dmg=Math.max(1,Math.round(n*(100/(100+calcArmor()*3))));save.health-=dmg;invulnerable=.55;$('hitflash').style.opacity=1;setTimeout(()=>$('hitflash').style.opacity=0,150);floater(`-${dmg}`);updateUI();if(save.health<=0){save.health=save.maxHealth;save.gold=Math.max(0,Math.floor(save.gold*.95));persist();setTimeout(()=>{buildHub();notify('You fell in the dungeon · Lost 5% Gold. Try again!')},450)}}
+function hurt(n){if(invulnerable>0||state!=='playing'||save.health<=0)return;let dmg=Math.max(1,Math.round(n*(100/(100+calcArmor()*3))*(runBlessing?.guard||1)));save.health-=dmg;invulnerable=.55;$('hitflash').style.opacity=1;setTimeout(()=>$('hitflash').style.opacity=0,150);floater(`-${dmg}`);updateUI();if(save.health<=0){save.health=save.maxHealth;save.gold=Math.max(0,Math.floor(save.gold*.95));persist();setTimeout(()=>{buildHub();notify('You fell in the dungeon · Lost 5% Gold. Try again!')},450)}}
 function nearestEnemy(dist=3.2){let best=null,bd=dist;for(const e of enemies){if(!e.alive)continue;const d=Math.hypot(e.x-player.position.x,e.z-player.position.z);if(d<bd){best=e;bd=d}}return best}
 function performAttack(){let e=nearestEnemy(3.15);if(!e)return;damageEnemy(e,calcAttack());sword.rotation.z=-.95;setTimeout(()=>{if(sword)sword.rotation.z=-.36},120)}
 function activateSkill(n){if(state!=='playing'||skillCD[n]>0)return;const power=calcAttack();if(n===0){let target=nearestEnemy(4.4);if(!target){notify('No target in range');return}damageEnemy(target,power*2.65,.27);skillCD[0]=6;notify('POWER STRIKE!')}if(n===1){let hits=0;for(const e of enemies)if(e.alive&&Math.hypot(e.x-player.position.x,e.z-player.position.z)<5.1){damageEnemy(e,power*1.4);hits++}if(!hits){notify('No enemies close enough');return}skillCD[1]=9;notify(`WHIRLWIND · ${hits} enemies hit`)}if(n===2){speedBoost=4;invulnerable=.3;skillCD[2]=13;notify('BATTLE RUSH · Increased movement and attack speed')}if(n===3){if(save.health>=save.maxHealth){notify('Health is already full');return}save.health=Math.min(save.maxHealth,save.health+Math.round(save.maxHealth*.36));skillCD[3]=22;floater('HEALED','reward');updateUI()}}
@@ -64,7 +64,7 @@ function openPanel(type){activePanel=type;state='panel';document.exitPointerLock
 function closePanel(){activePanel='';$('panel').classList.add('hidden');state='playing'}
 function pause(){if(state==='playing'){state='paused';document.exitPointerLock?.();$('pauseScreen').classList.remove('hidden');persist()}else if(state==='paused'){state='playing';$('pauseScreen').classList.add('hidden')}else if(state==='panel')closePanel()}
 function updateUI(){$('levelLabel').textContent=`LV ${save.level}`;$('statsLabel').textContent=`${calcAttack()} ATK · ${calcArmor()} DEF`;$('healthBar').style.width=`${100*save.health/save.maxHealth}%`;$('healthLabel').textContent=`${Math.ceil(save.health)} / ${save.maxHealth} HP`;$('xpBar').style.width=`${100*save.xp/nextXp(save.level)}%`;$('xpLabel').textContent=`${save.xp} / ${nextXp(save.level)} XP`;$('goldLabel').textContent=save.gold.toLocaleString();$('gemLabel').textContent=save.gems.toLocaleString();$('zoneLabel').textContent=world==='hub'?'ADVENTURER’S HAVEN':`FORGOTTEN CATACOMBS · TIER ${depth}`;$('mapNote').textContent=world==='hub'?'HAVEN':'CATACOMBS';$('cameraLabel').textContent=camMode==='third'?'THIRD PERSON':'FIRST PERSON';if(world==='hub'){$('questTitle').textContent='Enter the Catacombs';$('questDesc').textContent='Find the purple portal. Press E to enter.'}else if(bossDefeated){$('questTitle').textContent='Dungeon Cleared!';$('questDesc').textContent='Find the exit portal and claim your progress.'}else{$('questTitle').textContent='Defeat the Bone Guardian';$('questDesc').textContent=`${runKills} enemies defeated · Explore deeper`}}
-function initScene(){scene=new THREE.Scene();scene.background=new THREE.Color(0x151b2b);camera=new THREE.PerspectiveCamera(72,window.innerWidth/window.innerHeight,.08,115);renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.7));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;$('game').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xb5beff,0x353041,2.05));const sun=new THREE.DirectionalLight(0xe6d3ad,1.3);sun.position.set(-8,18,13);scene.add(sun);playerRig=new THREE.Group();player=new THREE.Group();playerRig.add(player);scene.add(playerRig);const armor=mat(0x53688c,.7,.2),skin=mat(0xe0ba96),dark=mat(0x242a3a),blade=new THREE.MeshStandardMaterial({color:0x9bb8ec,metalness:.82,roughness:.18});cylinder(.45,.39,.92,armor,0,1.07,0,player);sphere(.31,skin,0,1.73,0,player);cylinder(.35,.3,.3,armor,0,1.99,0,player);box(.48,.16,.65,dark,0,1.51,-.02,player);for(let x of [-.56,.56]){sphere(.21,armor,x,1.37,0,player);cylinder(.15,.16,.8,armor,x,1.02,0,player);cylinder(.16,.16,.75,dark,x*.39,.37,0,player)}sword=new THREE.Group();player.add(sword);sword.position.set(.8,1.06,.1);sword.rotation.z=-.36;box(.13,1.13,.12,blade,0,.44,0,sword);box(.45,.08,.19,goldMat,0,-.12,0,sword);cylinder(.085,.1,.42,dark,0,-.33,0,sword);clock=new THREE.Clock();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.addEventListener('click',()=>{if(state==='playing'&&document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock?.()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement&&state==='playing'){yaw-=e.movementX*.0025;pitch=clamp(pitch+e.movementY*.002, -.65,.9)}});document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(k))e.preventDefault();if(e.repeat&&['e','q','v','escape','i','u','1','2','3','4'].includes(k))return;keys.add(k);if(k==='escape'){pause();return}if(state!=='playing')return;if(k==='v'){camMode=camMode==='third'?'first':'third';save.settings.camera=camMode;updateUI();persist()}if(k==='e')interact();if(k==='t'){autoCombat=!autoCombat;notify(autoCombat?'Auto combat enabled':'Auto combat disabled')}if(k==='q'&&dodgeTime<=0&&stamina>=25){stamina-=25;dodgeTime=.3;invulnerable=.38;speedBoost=Math.max(speedBoost,.2)}if(k==='i')openPanel('inventory');if(k==='u')openPanel('upgrade');if('1234'.includes(k))activateSkill(Number(k)-1)});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pause()});requestAnimationFrame(loop)}
+function initScene(){scene=new THREE.Scene();scene.background=new THREE.Color(0x151b2b);camera=new THREE.PerspectiveCamera(72,window.innerWidth/window.innerHeight,.08,115);renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.7));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;$('game').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xb5beff,0x353041,2.05));const sun=new THREE.DirectionalLight(0xe6d3ad,1.3);sun.position.set(-8,18,13);scene.add(sun);playerRig=new THREE.Group();player=new THREE.Group();playerRig.add(player);scene.add(playerRig);const armor=mat(0x53688c,.7,.2),skin=mat(0xe0ba96),dark=mat(0x242a3a),blade=new THREE.MeshStandardMaterial({color:0x9bb8ec,metalness:.82,roughness:.18});cylinder(.45,.39,.92,armor,0,1.07,0,player);sphere(.31,skin,0,1.73,0,player);cylinder(.35,.3,.3,armor,0,1.99,0,player);box(.48,.16,.65,dark,0,1.51,-.02,player);for(let x of [-.56,.56]){sphere(.21,armor,x,1.37,0,player);cylinder(.15,.16,.8,armor,x,1.02,0,player);cylinder(.16,.16,.75,dark,x*.39,.37,0,player)}sword=new THREE.Group();player.add(sword);sword.position.set(.8,1.06,.1);sword.rotation.z=-.36;box(.13,1.13,.12,blade,0,.44,0,sword);box(.45,.08,.19,goldMat,0,-.12,0,sword);cylinder(.085,.1,.42,dark,0,-.33,0,sword);clock=new THREE.Clock();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.addEventListener('click',()=>{if(state==='playing'&&document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock?.()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement&&state==='playing'){yaw-=e.movementX*.0025;pitch=clamp(pitch+e.movementY*.002, -.65,.9)}});document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(k))e.preventDefault();if(e.repeat&&['e','q','v','escape','i','u','t','1','2','3','4'].includes(k))return;keys.add(k);if(k==='escape'){pause();return}if(state!=='playing')return;if(k==='v'){camMode=camMode==='third'?'first':'third';save.settings.camera=camMode;updateUI();persist()}if(k==='e')interact();if(k==='t'){autoCombat=!autoCombat;notify(autoCombat?'Auto combat enabled':'Auto combat disabled')}if(k==='q'&&dodgeTime<=0&&stamina>=25){stamina-=25;dodgeTime=.3;invulnerable=.38;speedBoost=Math.max(speedBoost,.2)}if(k==='i')openPanel('inventory');if(k==='u')openPanel('upgrade');if('1234'.includes(k))activateSkill(Number(k)-1)});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pause()});requestAnimationFrame(loop)}
 function interact(){if(!nearby)return;let action=nearby.action;if(action==='enter'){buildDungeon();persist()}else if(action==='exit'){if(!bossDefeated){notify('Defeat the Bone Guardian before leaving!');return}save.health=Math.min(save.maxHealth,save.health+35);const earned=runGold;save.gold+=120+35*depth;gainXp(80*depth);persist();buildHub();notify(`Dungeon complete · ${earned} gold earned!`)}else if(action==='forge')openPanel('upgrade');else if(action==='craft')openPanel('inventory');else if(action==='chest'&&!nearby.opened){nearby.opened=true;nearby.g.visible=false;save.gold+=120*depth;save.gems+=1;if(Math.random()<.8)dropItem('boss');floater('TREASURE FOUND!','reward');persist();updateUI()}}
 function collides(x,z){let r=.42;for(const w of walls)if(Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r)return true;return false}
 function attemptMove(dx,dz){let x=player.position.x,z=player.position.z;if(!collides(x+dx,z))player.position.x+=dx;if(!collides(player.position.x,z+dz))player.position.z+=dz}
@@ -100,9 +100,104 @@ function detailBrazier(x,z){
   const ember=mesh(new THREE.OctahedronGeometry(.24),new THREE.MeshBasicMaterial({color:0xffa15f}),g);ember.position.y=1.35;
   torches.push({f:ember,l:{intensity:0}});
 }
+
+// v0.3 THE RELIC UPDATE: seeded dungeon accents, meaningful shrines and loot quality-of-life.
+let runBlessing=null;
+function makeShrine(x,z){
+  const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+  cylinder(1.0,1.25,.42,carved,0,.21,0,g,10);
+  cylinder(.62,.82,.9,stone2,0,.84,0,g,8);
+  cylinder(.44,.52,.15,bronze,0,1.35,0,g,8);
+  const gem=mesh(new THREE.IcosahedronGeometry(.39,1),runeMat,g);
+  gem.position.y=1.98;gem.rotation.z=.5;
+  const halo=mesh(new THREE.TorusGeometry(.55,.045,7,30),goldMat,g);
+  halo.position.y=1.92;halo.rotation.x=Math.PI/3;
+  interactables.push({x,z,range:2.8,text:'Claim a relic blessing',action:'relic',g,opened:false});
+}
+function buildDungeonFeatures(){
+  if(rooms.length<4)return;
+  // Three room variations per run. These do not change collisions or required pathways.
+  for(let i=1;i<rooms.length-1;i++){
+    const z=rooms[i].z;
+    const theme=(Math.floor(sRand()*3)+i)%3;
+    if(theme===0){
+      for(const x of [-6.5,6.5])for(const dz of [-1.6,1.6]){
+        const crystal=mesh(new THREE.ConeGeometry(.35,1.65,6),runeMat);
+        crystal.position.set(x,.86,z+dz);
+        crystal.rotation.z=(x<0?.1:-.1);
+      }
+    }else if(theme===1){
+      for(const x of [-7.7,7.7])for(const dz of [-4,0,4]){
+        const alcove=box(.32,2.3,1.35,midnight,x,1.2,z+dz);
+        const marker=box(.34,.53,.31,bronze,x*1.01,2.15,z+dz);
+      }
+    }else{
+      for(let j=0;j<4;j++){
+        const x=j%2===0?-6.4:6.4, dz=(j<2?-3.4:3.4);
+        detailRubble(x,z+dz);
+      }
+    }
+  }
+  const shrineRoom=1+Math.floor(sRand()*Math.max(1,rooms.length-3));
+  const side=(sRand()>.5?1:-1);
+  makeShrine(side*4.3,rooms[shrineRoom].z-1.9);
+  if(rooms.length>=5){
+    const x=-side*4.8,z=rooms[2].z+3;
+    const standard=mesh(new THREE.CylinderGeometry(.06,.06,2.45,6),bronze);
+    standard.position.set(x,1.2,z);
+    const flag=box(.85,1.25,.08,velvet,x,2.0,z);
+    const emblem=mesh(new THREE.OctahedronGeometry(.21),goldMat);
+    emblem.position.set(x,2.0,z+.1);
+  }
+}
+const oldInteractRelic=interact;
+interact=function(){
+  if(nearby?.action==='relic'&&!nearby.opened){
+    const shrine=nearby;
+    shrine.opened=true;
+    shrine.g.visible=false;
+    const blessings=[
+      {name:'Fury of the Ancients',damage:Math.max(5,Math.round(calcAttack()*.18)),loot:0,guard:1},
+      {name:'Guardian Ward',damage:0,loot:0,guard:.70},
+      {name:'Treasure Seeker',damage:0,loot:.12,guard:1},
+      {name:'Renewal',damage:0,loot:0,guard:1,heal:.45}
+    ];
+    const picked=blessings[Math.floor(Math.random()*blessings.length)];
+    runBlessing=picked;
+    if(picked.heal)save.health=Math.min(save.maxHealth,save.health+Math.round(save.maxHealth*picked.heal));
+    notify('RELIC BLESSING: '+picked.name+' · Active until you leave');
+    floater('✦ RELIC AWAKENED','reward');
+    updateUI();refreshReforgedUI();
+    return;
+  }
+  oldInteractRelic();
+};
+const oldRenderPanelRelic=renderPanel;
+renderPanel=function(){
+  oldRenderPanelRelic();
+  if(activePanel!=='inventory'||panelTab!=='inventory')return;
+  const root=$('panelBody');
+  if(!root||root.querySelector('[data-salvage-all]'))return;
+  const section=document.createElement('div');section.className='relic-tools';
+  const common=save.inventory.filter(i=>i.tier<=1&&save.equipped[i.slot]!==i.id);
+  section.innerHTML='<div><b>Loot Management</b><p>Safely sell unused Common and Uncommon equipment. Equipped gear and Rare+ items are protected.</p></div><button data-salvage-all '+(common.length?'':'disabled')+'>SELL '+common.length+' LOW-TIER ITEMS</button>';
+  root.insertBefore(section,root.querySelector('.item-grid'));
+  section.querySelector('[data-salvage-all]').onclick=()=>{
+    const candidates=save.inventory.filter(i=>i.tier<=1&&save.equipped[i.slot]!==i.id);
+    if(!candidates.length)return;
+    const value=candidates.reduce((a,i)=>a+Math.round(((Number(i.power)||0)+(Number(i.bonus)||0))*8*(tiers[i.tier]?.scale||1)),0);
+    if(!confirm('Sell '+candidates.length+' low-tier items for '+value.toLocaleString()+' gold?'))return;
+    const ids=new Set(candidates.map(i=>i.id));
+    save.inventory=save.inventory.filter(i=>!ids.has(i.id));
+    save.gold+=value;
+    persist();updateUI();renderPanel();notify('Sold '+candidates.length+' items for '+value.toLocaleString()+' gold');
+  };
+};
+
 const oldBuildHub=buildHub;
 buildHub=function(){
   oldBuildHub();
+  runBlessing=null;
   for(const x of [-15,-9,9,15])for(const z of [-16,16])detailPillar(x,z);
   for(const z of [-21,21])for(const x of [-12,0,12])detailBanner(x,z,z<0?0:Math.PI);
   for(let i=0;i<8;i++)detailRubble(rand(-17,17),rand(-17,17));
@@ -130,6 +225,7 @@ buildDungeon=function(){
     }
   }
   for(let n=0;n<3;n++)spawnChestSide(n);
+  buildDungeonFeatures();
   refreshReforgedUI();
 };
 function spawnChestSide(n){
@@ -198,6 +294,7 @@ defeatEnemy=function(e){
   refreshReforgedUI();
 };
 function refreshReforgedUI(){
+  const status=$('blessingLabel'); if(status)status.textContent=runBlessing ? '✦ '+runBlessing.name.toUpperCase() : 'NO ACTIVE BLESSING';
   const node=$('staminaFill');if(node)node.style.width=stamina.toFixed(0)+'%';
   const auto=$('autoLabel');if(auto)auto.textContent=autoCombat?'AUTO ATTACK: ON':'AUTO ATTACK: OFF';
   const mastery=$('masteryLabel');if(mastery)mastery.textContent='MASTERY '+(save.mastery||0);
