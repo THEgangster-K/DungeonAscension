@@ -1,11 +1,19 @@
-# Dungeon Ascension — Dungeon Contracts v0.4
+# Dungeon Ascension — Animated Depths v0.5
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
 ## Play
 https://dungeonascension.onrender.com/
 
-## What's new in v0.4
+## What's new in v0.5
+- Lightweight procedural arm/leg animation for the hero and enemies (walking, attacking and wind-ups)
+- Additional layered equipment visual details on characters
+- Dungeon arches, floor medallions and room-specific decorative features
+- Low / Medium / High graphics preset button in the pause menu; saves user preference
+- Enhanced combat HUD readability
+- All previous contracts, relics, loot, progression and save key retained
+
+## Previously added in v0.4
 - Dungeon portal now opens a tier and difficulty selection menu
 - Replay previously unlocked tiers to farm gear and gold
 - Three challenges: Explorer (100% rewards), Veteran (165%), Nightmare (230%)
@@ -59,7 +67,7 @@ The game retains the existing `dungeon-ascension-v0.1` localStorage key. Your sa
 Local storage is specific to the browser and device and can be erased by browser settings.
 
 ## Quality and limits
-v0.4 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
+v0.5 expands the prototype but is not a finished commercial RPG. The 3D assets are procedurally built from geometry rather than imported hand-animated character models. Automated smoke tests are defined in `.github/workflows/smoke.yml`; full gameplay and performance need browser playtesting.
 
 ## Files
 - `index.html` — menus and HUD
@@ -68,3 +76,9 @@ v0.4 expands the prototype but is not a finished commercial RPG. The 3D assets a
 
 ## Contract gameplay
 Enter the purple hub portal and select any tier you have unlocked. Choose Explorer, Veteran, or Nightmare, then click **Enter Dungeon**. Temporary relic bonuses still apply for that run. Complete the boss and use the exit portal to return to the hub. Choosing earlier tiers will not reduce your highest unlocked tier.
+
+## Graphics
+Open the pause menu (Esc) and click **Graphics** to cycle through Low, Medium and High rendering resolutions. Changes apply immediately and persist in the browser save. Quality settings affect rendering resolution, not the core gameplay mechanics.
+
+## Current limitations
+Procedural animations and geometry are an improvement over static blocks but do not replace professionally authored 3D character models. Static hosting successfully deploying does not prove the gameplay is bug-free; browser playtesting remains necessary.
