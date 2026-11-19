@@ -1,4 +1,25 @@
-# Dungeon Ascension — Visual Ascension v1.0
+# Dungeon Ascension — Luminous Armour v1.1
+
+## v1.1 — Visibility without reducing graphics
+
+The v1.0 dark-fantasy grade was too dark to navigate reliably. This patch improves actual scene illumination and material readability while also replacing the blocky character equipment silhouettes.
+
+- Stronger hemisphere light and warm directional key light, complemented by a cool blue fill
+- Dedicated warm light follows the player and new room-centre lights illuminate main dungeon routes and combat areas
+- Lighter fog tint and density, and tuned filmic exposure for readable walls, ground and enemies
+- Reduced black vignette and softened the postprocessing contrast, without disabling antialiasing, decreasing resolution or reducing texture detail
+- New tapered forged-steel sword, separate raised fuller, bevelled edges, curved crossguard, leather grip, layered grip rings and sculpted pommel
+- More shaped hero breastplate, helmet, pauldrons, vambraces, shin protection and decorative trim
+- Enemy armour plates, silhouette accents and distinct archer equipment; the stable built-in hero model remains visible
+- Original Nightmare enemy chase distances, collision calculations, dungeon progression, contracts, relics, elite bounties and inventory unchanged
+- Same localStorage save key (`dungeon-ascension-v0.1`) and version 1
+- Graphics presets remain selectable from the pause menu. This update increases lighting and appearance detail, rather than lowering default graphics
+
+**Verification:** JavaScript parsing and visual wiring checks passed. A full interactive browser test and GPU performance measurements have not been completed. If issues occur, report the dungeon tier, graphics mode, and whether experimental external enemy models were enabled.
+
+**Play:** https://dungeonascension.onrender.com — press Ctrl+Shift+R if an older build remains cached.
+
+## Previous release — Visual Ascension v1.0
 
 ## v1.0 Visual Ascension — major art, effects and presentation update
 This update makes the existing browser game more atmospheric and readable while retaining the prior movement, Nightmare collision fixes, Elite Hunts, dungeon contracts, crafting, loot, upgrades and permanent progress.
