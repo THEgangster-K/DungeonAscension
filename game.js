@@ -1534,6 +1534,160 @@ function toggleActionAudio(){
   persist();notify('Sound effects '+(actionAudio.enabled?'enabled':'disabled'));
 }
 
+
+// v1.1 — LUMINOUS ARMOUR: legible dark fantasy lighting and shaped, high-detail equipment.
+// These are independent visual meshes and lights; movement, combat ranges, inventory and saves remain unchanged.
+const luminous={follow:null,fill:null,worldLights:[],lastWorld:'',swordBuilt:false};
+const steelBlade=new THREE.MeshStandardMaterial({color:0xc4d9e9,metalness:.87,roughness:.2,emissive:0x243147,emissiveIntensity:.16,side:THREE.DoubleSide});
+const steelEdge=new THREE.MeshStandardMaterial({color:0xe5f5ff,metalness:.76,roughness:.16,emissive:0x4c6884,emissiveIntensity:.22});
+const steelDark=new THREE.MeshStandardMaterial({color:0x3c526c,metalness:.77,roughness:.36});
+const heraldicGold=new THREE.MeshStandardMaterial({color:0xd7ae6b,metalness:.75,roughness:.3,emissive:0x332009,emissiveIntensity:.16});
+const heraldicLeather=new THREE.MeshStandardMaterial({color:0x4c3340,roughness:.84});
+function curvedPlateShape(outline,depth,material,parent,x=0,y=0,z=0){
+  const shape=new THREE.Shape();
+  shape.moveTo(outline[0][0],outline[0][1]);
+  for(let i=1;i<outline.length;i++)shape.lineTo(outline[i][0],outline[i][1]);
+  shape.closePath();
+  const geo=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelThickness:.055,bevelSize:.043,bevelSegments:2,steps:1,curveSegments:8});
+  const o=mesh(geo,material,parent);o.position.set(x,y,z);
+  return o;
+}
+function shapedBlade(){
+  if(!sword||luminous.swordBuilt)return;
+  luminous.swordBuilt=true;
+  for(const child of [...sword.children]){
+    sword.remove(child);
+    child.traverse(o=>{if(o.isMesh&&o.geometry&&!o.userData.externalAsset)o.geometry.dispose()});
+  }
+  // Continuous taper from broad ricasso to an acute point; geometric centre is the sword group.
+  const outline=[[-.155,.04],[-.16,.23],[-.205,.38],[-.182,.67],[-.137,1.00],[-.083,1.28],[0,1.48],[.083,1.28],[.137,1.00],[.182,.67],[.205,.38],[.16,.23],[.155,.04]];
+  curvedPlateShape(outline,.070,steelBlade,sword,0,0,-.034);
+  // Raised central fuller stops before the sword point.
+  const fuller=curvedPlateShape([[-.032,.28],[-.039,.57],[-.027,.96],[0,1.13],[.027,.96],[.039,.57],[.032,.28]],.014,steelDark,sword,0,0,.064);
+  fuller.material=steelDark;
+  for(const side of [-1,1]){
+    const edge=curvedPlateShape([[side*.154,.19],[side*.19,.40],[side*.141,.87],[side*.085,1.28],[0,1.48],[side*.069,1.17]],.015,steelEdge,sword,0,0,.035);
+    edge.material.side=THREE.DoubleSide;
+  }
+  // Quillons curve down toward the grip, not a simple horizontal block.
+  const guardShape=[[-.56,.03],[-.46,.13],[-.32,.16],[-.15,.06],[.15,.06],[.32,.16],[.46,.13],[.56,.03],[.43,-.05],[.23,-.06],[0,-.085],[-.23,-.06],[-.43,-.05]];
+  curvedPlateShape(guardShape,.14,heraldicGold,sword,0,0,-.07);
+  const grip=cylinder(.073,.09,.38,heraldicLeather,0,-.29,0,sword,12);
+  for(let j=0;j<6;j++){
+    const ring=mesh(new THREE.TorusGeometry(.083,.012,5,12),heraldicGold,sword);
+    ring.rotation.x=Math.PI/2;ring.position.y=-.46+j*.058;
+  }
+  const pommel=mesh(new THREE.IcosahedronGeometry(.12,1),heraldicGold,sword);pommel.position.y=-.56;
+  const gem=mesh(new THREE.OctahedronGeometry(.058),runeMat,sword);gem.position.set(0,-.56,.1);
+  sword.position.set(.79,1.01,.17);
+}
+function shapedKnight(){
+  if(!player)return;
+  // Keep existing articulated limb animation; add layered curves and faceted highlights.
+  const torso=mesh(new THREE.LatheGeometry([
+    new THREE.Vector2(.24,0),new THREE.Vector2(.37,.16),new THREE.Vector2(.49,.45),
+    new THREE.Vector2(.43,.68),new THREE.Vector2(.38,.81),new THREE.Vector2(.26,.88)
+  ],16),steelDark,player);
+  torso.position.y=.75;
+  const breast=curvedPlateShape([
+    [-.31,.05],[-.43,.17],[-.45,.51],[-.31,.71],[0,.78],[.31,.71],[.45,.51],[.43,.17],[.31,.05],[0,-.04]
+  ],.14,steelBlade,player,0,.78,.30);
+  breast.rotation.x=-.09;
+  const breastRidge=curvedPlateShape([[-.055,.08],[0,.67],[.055,.08]],.03,heraldicGold,player,0,.82,.51);
+  for(const side of [-1,1]){
+    const pauldron=mesh(new THREE.SphereGeometry(.34,14,10,0,Math.PI*2,0,Math.PI*.66),steelBlade,player);
+    pauldron.position.set(side*.61,1.46,.0);pauldron.rotation.z=side*.31;
+    const pauldronBand=mesh(new THREE.TorusGeometry(.26,.034,6,16,Math.PI),heraldicGold,player);
+    pauldronBand.position.set(side*.63,1.39,.14);pauldronBand.rotation.z=side*.3;
+    const vambrace=mesh(new THREE.CylinderGeometry(.13,.19,.48,9),steelBlade,player);
+    vambrace.position.set(side*.58,.98,.11);vambrace.rotation.z=side*.08;
+    const greave=mesh(new THREE.CylinderGeometry(.16,.22,.49,9),steelDark,player);
+    greave.position.set(side*.25,.39,.12);
+    const shin=curvedPlateShape([[-.14,-.23],[-.18,.18],[0,.33],[.18,.18],[.14,-.23],[0,-.33]],.09,steelBlade,player,side*.25,.37,.23);
+    shin.scale.set(.85,1,1);
+  }
+  const helm=mesh(new THREE.LatheGeometry([
+    new THREE.Vector2(.25,0),new THREE.Vector2(.36,.12),new THREE.Vector2(.36,.35),
+    new THREE.Vector2(.32,.50),new THREE.Vector2(.23,.61),new THREE.Vector2(.06,.69)
+  ],16),steelBlade,player);
+  helm.position.set(0,1.60,0);
+  const visor=curvedPlateShape([[-.28,.06],[-.33,.18],[-.25,.26],[.25,.26],[.33,.18],[.28,.06],[0,-.01]],.11,steelDark,player,0,1.66,.28);
+  const sight=box(.49,.058,.035,midnight,0,1.87,.414,player);
+  for(const x of [-.20,.20]){
+    box(.045,.075,.04,heraldicGold,x,1.86,.45,player);
+  }
+  const crest=mesh(new THREE.ConeGeometry(.15,.39,8),heraldicGold,player);crest.position.set(0,2.31,0);
+}
+function enhanceEnemyShape(e){
+  if(!e?.g)return;
+  const g=e.g,t=e.type;
+  if(t==='brute'||t==='boss'){
+    const p=curvedPlateShape([[-.37,.03],[-.52,.28],[-.40,.60],[0,.78],[.40,.60],[.52,.28],[.37,.03],[0,-.04]],.14,t==='boss'?heraldicGold:steelDark,g,0,.91,.33);
+    p.rotation.x=-.09;
+    for(const side of [-1,1]){
+      const spike=mesh(new THREE.ConeGeometry(t==='boss'?.19:.13,t==='boss'?.66:.49,8),t==='boss'?steelBlade:steelDark,g);
+      spike.position.set(side*.52,t==='boss'?1.92:1.59,0);spike.rotation.z=side*.4;
+    }
+  }else if(t==='archer'){
+    const bowGrip=mesh(new THREE.TorusGeometry(.56,.046,8,24,Math.PI*1.55),heraldicGold,g);
+    bowGrip.position.set(.77,1.1,.25);bowGrip.rotation.y=Math.PI/2;
+    const string=mesh(new THREE.CylinderGeometry(.009,.009,1.06,4),steelEdge,g);
+    string.position.set(.78,1.1,.25);
+  }else{
+    const bonyRib=mesh(new THREE.TorusGeometry(.32,.05,7,13,Math.PI),steelEdge,g);
+    bonyRib.rotation.x=Math.PI/2;bonyRib.position.set(0,1.17,.25);
+  }
+}
+function visibleStoneLighting(){
+  if(!scene||!renderer)return;
+  // Remove the old dark crush without flattening the geometry or lowering resolution.
+  scene.fog=new THREE.FogExp2(world==='dungeon'?0x253047:0x2a3049,world==='dungeon'?.013:.012);
+  scene.background=new THREE.Color(world==='dungeon'?0x242a3e:0x293147);
+  renderer.toneMappingExposure=world==='dungeon'?2.08:1.83;
+  for(const l of scene.children)if(l.isHemisphereLight){l.color.set(0xd9e8ff);l.groundColor.set(0x535569);l.intensity=world==='dungeon'?3.3:2.9;}
+  for(const l of scene.children)if(l.isDirectionalLight){l.intensity=world==='dungeon'?1.65:1.4;l.color.set(0xffe9cf);}
+  if(luminous.fill){scene.remove(luminous.fill);luminous.fill.dispose();luminous.fill=null;}
+  luminous.fill=new THREE.DirectionalLight(0x90b9ee,world==='dungeon'?1.2:.8);
+  luminous.fill.position.set(9,15,-12);scene.add(luminous.fill);
+  if(luminous.follow){scene.remove(luminous.follow);luminous.follow.dispose();luminous.follow=null;}
+  luminous.follow=new THREE.PointLight(0xffdbab,world==='dungeon'?2.65:2,21,1.5);
+  luminous.follow.position.set(player.position.x,3.2,player.position.z);
+  scene.add(luminous.follow);
+  luminous.worldLights=[];
+  if(world==='dungeon'){
+    for(let i=0;i<rooms.length;i++){
+      const z=rooms[i].z;
+      const ambient=new THREE.PointLight(i===rooms.length-1?0xe4ab73:0xa4baf2,2.6,21,2);
+      ambient.position.set(0,4.0,z);scene.add(ambient);luminous.worldLights.push(ambient);
+      // Illuminated centre aisle and walls, without new collision meshes.
+      for(const sx of [-1,1]){
+        const trim=mesh(new THREE.BoxGeometry(.14,.028,10.1),runeMat);
+        trim.position.set(sx*6.9,.045,z);
+      }
+    }
+  }
+}
+const lumOldScene=initScene;
+initScene=function(){lumOldScene();shapedBlade();shapedKnight();};
+const lumOldEnemy=spawnEnemy;
+spawnEnemy=function(x,z,type){lumOldEnemy(x,z,type);enhanceEnemyShape(enemies[enemies.length-1]);};
+const lumOldDungeon=buildDungeon;
+buildDungeon=function(){lumOldDungeon();visibleStoneLighting();};
+const lumOldHub=buildHub;
+buildHub=function(){lumOldHub();visibleStoneLighting();};
+const lumOldUpdate=updatePlayer;
+updatePlayer=function(dt){
+  lumOldUpdate(dt);
+  if(luminous.follow)luminous.follow.position.set(player.position.x,3.2,player.position.z);
+};
+const lumOldLightCulling=ascendLights;
+ascendLights=function(){
+  lumOldLightCulling();
+  // Preserve bright navigation and combat lighting on every graphics preset.
+  if(luminous.follow)luminous.follow.visible=true;
+  for(const l of luminous.worldLights)l.visible=true;
+};
+
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
 $('audioBtn').onclick=toggleActionAudio;
 $('modelsBtn').onclick=toggleAssetModels;
