@@ -1,5 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer} from './combat-math.mjs';
+import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer,eliteBountyReward} from './combat-math.mjs';
 
 const $=id=>document.getElementById(id);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -915,6 +915,106 @@ updateEnemies=function(dt){
     e.animation.rightArm.rotation.x=swing*.65+(e.windup>0?-1:0);
   }
   updateAssetActors(dt);
+};
+
+
+// v0.9 — ELITE HUNTS: an optional, visible miniboss-style objective on each dungeon run.
+// Elite enemies use the same combat AI, world coordinates, and warning geometry as other enemies.
+const eliteHunt={enemy:null,active:false,complete:false,reward:null,runId:0};
+const eliteAuraMaterial=new THREE.MeshBasicMaterial({color:0xf0b15c,transparent:true,opacity:.84,side:THREE.DoubleSide,depthWrite:false});
+function resetEliteHunt(){
+  eliteHunt.runId++;eliteHunt.enemy=null;eliteHunt.active=false;
+  eliteHunt.complete=false;eliteHunt.reward=null;
+  const label=$('eliteHuntStatus');if(label)label.textContent='ELITE HUNT · NOT ACTIVE';
+  const bar=$('eliteHuntFill');if(bar)bar.style.width='0%';
+}
+function activateEliteHunt(){
+  const candidates=enemies.filter(e=>e.alive&&e.type!=='boss'&&e.type!=='archer'&&e.g?.parent===scene);
+  if(!candidates.length){resetEliteHunt();return}
+  const selected=candidates[Math.floor(sRand()*candidates.length)];
+  eliteHunt.enemy=selected;eliteHunt.active=true;eliteHunt.complete=false;
+  eliteHunt.reward=eliteBountyReward(depth,contract?.reward||1);
+  selected.elite=true;
+  selected.eliteName=selected.type==='brute'?'CRYPT CHAMPION':'CURSED SENTINEL';
+  selected.hp=Math.round(selected.hp*1.9);
+  selected.max=selected.hp;
+  selected.damage=Math.round(selected.damage*1.2);
+  // Keep speed and collision range unchanged to protect the previous Nightmare fix.
+  const halo=mesh(new THREE.TorusGeometry(.53,.075,8,24),eliteAuraMaterial,selected.g);
+  halo.position.set(0,2.28,0);halo.rotation.x=Math.PI/2;
+  const badge=mesh(new THREE.OctahedronGeometry(.20),goldMat,selected.g);
+  badge.position.set(0,2.63,0);
+  const ring=mesh(new THREE.RingGeometry(.83,.91,32),eliteAuraMaterial);
+  ring.rotation.x=-Math.PI/2;ring.position.set(selected.x,.085,selected.z);
+  selected.eliteRing=ring;selected.eliteHalo=halo;selected.eliteBadge=badge;
+  updateEliteHUD();
+}
+function updateEliteHUD(){
+  const label=$('eliteHuntStatus'),bar=$('eliteHuntFill'),reward=$('eliteHuntReward');
+  if(!label)return;
+  if(world!=='dungeon'){label.textContent='ELITE HUNT · ENTER A DUNGEON';if(bar)bar.style.width='0%';return}
+  if(eliteHunt.complete){
+    label.textContent='ELITE HUNT COMPLETE ✓';
+    if(bar)bar.style.width='100%';
+    if(reward)reward.textContent='BONUS COLLECTED';
+    return;
+  }
+  if(!eliteHunt.active||!eliteHunt.enemy){
+    label.textContent='ELITE HUNT · NO TARGET';
+    if(bar)bar.style.width='0%';return;
+  }
+  const e=eliteHunt.enemy;
+  label.textContent=e.eliteName+' · '+Math.ceil(e.hp)+' / '+Math.ceil(e.max)+' HP';
+  if(bar)bar.style.width=clamp(100*e.hp/e.max,0,100).toFixed(1)+'%';
+  if(reward)reward.textContent='BOUNTY '+eliteHunt.reward.gold+' GOLD · '+eliteHunt.reward.gems+' GEMS';
+}
+const beforeBuildDungeonElite=buildDungeon;
+buildDungeon=function(){
+  resetEliteHunt();
+  beforeBuildDungeonElite();
+  activateEliteHunt();
+  updateEliteHUD();
+  notify('DUNGEON CONTRACT ACTIVE · FIND THE MARKED ELITE');
+};
+const beforeBuildHubElite=buildHub;
+buildHub=function(){
+  resetEliteHunt();
+  beforeBuildHubElite();
+  updateEliteHUD();
+};
+const beforeDefeatEnemyElite=defeatEnemy;
+defeatEnemy=function(e){
+  const claimed=e===eliteHunt.enemy&&eliteHunt.active&&!eliteHunt.complete;
+  beforeDefeatEnemyElite(e);
+  if(claimed){
+    eliteHunt.complete=true;eliteHunt.active=false;
+    const r=eliteHunt.reward;
+    save.gold+=r.gold;save.gems+=r.gems;gainXp(r.xp);
+    floater('ELITE HUNT COMPLETE!','reward');
+    notify('ELITE VANQUISHED · +'+r.gold+' GOLD · +'+r.gems+' GEMS');
+    persist();updateUI();
+  }
+  if(e.eliteRing){scene.remove(e.eliteRing);e.eliteRing.geometry.dispose();e.eliteRing=null}
+  updateEliteHUD();
+};
+const beforeEliteUpdate=updateEnemies;
+updateEnemies=function(dt){
+  beforeEliteUpdate(dt);
+  const e=eliteHunt.enemy;
+  if(world==='dungeon'&&e&&e.alive){
+    if(e.eliteRing){
+      e.eliteRing.position.set(e.x,.082,e.z);
+      e.eliteRing.rotation.z=0;
+    }
+    if(e.eliteBadge)e.eliteBadge.rotation.y+=dt*1.7;
+    if(e.eliteHalo)e.eliteHalo.rotation.z+=dt*.35;
+  }
+  if(eliteHunt.active&&gameTick%1<dt)updateEliteHUD();
+};
+const beforeEliteRefresh=refreshReforgedUI;
+refreshReforgedUI=function(){
+  beforeEliteRefresh();
+  if(eliteHunt.active||eliteHunt.complete)updateEliteHUD();
 };
 
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
