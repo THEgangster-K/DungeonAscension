@@ -1011,6 +1011,23 @@ updateEnemies=function(dt){
   }
   if(eliteHunt.active&&gameTick%1<dt)updateEliteHUD();
 };
+const beforeEliteMap=drawMap;
+drawMap=function(){
+  beforeEliteMap();
+  const e=eliteHunt.enemy;
+  if(world!=='dungeon'||!eliteHunt.active||!e?.alive)return;
+  const canvas=$('minimap'),ctx=canvas?.getContext('2d');
+  if(!ctx)return;
+  const scale=3;
+  ctx.save();
+  ctx.translate(canvas.width/2,canvas.height/2);
+  ctx.rotate(yaw);
+  ctx.translate(-player.position.x*scale,-player.position.z*scale);
+  ctx.strokeStyle='#f7d180';
+  ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(e.x*scale,e.z*scale,7,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
+};
 const beforeEliteRefresh=refreshReforgedUI;
 refreshReforgedUI=function(){
   beforeEliteRefresh();
