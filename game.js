@@ -1,4 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer} from './combat-math.mjs';
 
 const $=id=>document.getElementById(id);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -8,12 +9,14 @@ const VERSION=1;
 const tiers=[{name:'Common',color:'#b8b9c5',weight:55,scale:1},{name:'Uncommon',color:'#68d88e',weight:25,scale:1.22},{name:'Rare',color:'#72a7ff',weight:12,scale:1.55},{name:'Epic',color:'#bd8dff',weight:6,scale:1.95},{name:'Legendary',color:'#f6bd58',weight:1.8,scale:2.6},{name:'Mythic',color:'#ff6d88',weight:.2,scale:3.5}];
 const names=['Rustbound','Emberguard','Stormforged','Moonfall','Oathkeeper','Ironclad','Starshard','Runemarked','Graveborn','Dawnbringer'];
 const defaultSave=()=>({version:VERSION,level:1,xp:0,gold:250,gems:0,maxHealth:110,health:110,attackUpgrade:0,healthUpgrade:0,armorUpgrade:0,critUpgrade:0,luckUpgrade:0,mastery:0,depth:1,clears:0,kills:0,bossKills:0,inventory:[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}],equipped:{weapon:'starter',armor:null},questRewardClaimed:0,settings:{quality:'medium',camera:'third',models:'on'},created:Date.now()});
-let save=defaultSave();let noticeTime=0;let uid=0;let autoCombat=true;
+let save=defaultSave();let noticeTime=0;let uid=0;let autoCombat=true;let showHitboxes=false;
 const nextXp=lv=>Math.round(85*Math.pow(lv,1.32));
 function cleanSave(s){if(!s||typeof s!=='object')return null;let d=defaultSave();for(const k of Object.keys(d))if(Object.prototype.hasOwnProperty.call(s,k))d[k]=s[k];d.version=VERSION;for(const k of ['level','xp','gold','gems','attackUpgrade','healthUpgrade','armorUpgrade','critUpgrade','luckUpgrade','mastery','depth','clears','kills','bossKills'])d[k]=clamp(Number(d[k])||0,0,1e10);d.level=Math.max(1,Math.floor(d.level));d.depth=clamp(Math.floor(d.depth),1,5);d.maxHealth=clamp(110+d.healthUpgrade*18,110,1e7);d.health=clamp(Number(d.health)||d.maxHealth,1,d.maxHealth);if(!Array.isArray(d.inventory))d.inventory=[];d.inventory=d.inventory.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&['weapon','armor'].includes(x.slot)).slice(0,120);if(!d.inventory.length)d.inventory=[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}];if(!d.equipped||typeof d.equipped!=='object')d.equipped={weapon:d.inventory[0].id,armor:null};for(const slot of ['weapon','armor'])if(!d.inventory.some(x=>x.id===d.equipped[slot]&&x.slot===slot))d.equipped[slot]=slot==='weapon'?d.inventory.find(x=>x.slot===slot)?.id||null:null;d.settings={...defaultSave().settings,...(d.settings||{})};return d;}
 function load(){try{const raw=localStorage.getItem(SAVE_KEY);if(raw){const s=cleanSave(JSON.parse(raw));if(s)save=s;}}catch(e){console.warn('Save read failed',e)}}
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save));$('savedInfo').textContent=`Saved adventurer · Level ${save.level} · ${save.clears} dungeon clears`;return true}catch(e){notify('Save blocked: export a backup from the pause menu');return false}}
 load();
+// v0.8 migration: temporary safe default after reports of drifting external enemy rigs.
+if(!save.settings.enemyRigSafetyV8){save.settings.models='off';save.settings.enemyRigSafetyV8=true}
 let scene,camera,renderer,clock,player,playerRig,sword,torches=[],decor=[],enemies=[],loot=[],effects=[],walls=[],interactables=[],keys=new Set(),moveVector=new THREE.Vector3();
 let state='title',world='hub',camMode=save.settings.camera==='first'?'first':'third',yaw=0,pitch=.18,speedBoost=0,invulnerable=0,attackTimer=0,stamina=100,skillCD=[0,0,0,0],dodgeTime=0,hitTime=0,nearby=null,runTime=0,gameTick=0,ambientClock=0,seed=1,activePanel='',panelTab='inventory',depth=1,rooms=[],bossDefeated=false,runKills=0,runGold=0,portal=null,hubProps=[];
 const mat=(color,roughness=1,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
@@ -64,7 +67,7 @@ function openPanel(type){activePanel=type;state='panel';document.exitPointerLock
 function closePanel(){activePanel='';$('panel').classList.add('hidden');state='playing'}
 function pause(){if(state==='playing'){state='paused';document.exitPointerLock?.();$('pauseScreen').classList.remove('hidden');persist()}else if(state==='paused'){state='playing';$('pauseScreen').classList.add('hidden')}else if(state==='panel')closePanel()}
 function updateUI(){$('levelLabel').textContent=`LV ${save.level}`;$('statsLabel').textContent=`${calcAttack()} ATK · ${calcArmor()} DEF`;$('healthBar').style.width=`${100*save.health/save.maxHealth}%`;$('healthLabel').textContent=`${Math.ceil(save.health)} / ${save.maxHealth} HP`;$('xpBar').style.width=`${100*save.xp/nextXp(save.level)}%`;$('xpLabel').textContent=`${save.xp} / ${nextXp(save.level)} XP`;$('goldLabel').textContent=save.gold.toLocaleString();$('gemLabel').textContent=save.gems.toLocaleString();$('zoneLabel').textContent=world==='hub'?'ADVENTURER’S HAVEN':`FORGOTTEN CATACOMBS · TIER ${depth}`;$('mapNote').textContent=world==='hub'?'HAVEN':'CATACOMBS';$('cameraLabel').textContent=camMode==='third'?'THIRD PERSON':'FIRST PERSON';if(world==='hub'){$('questTitle').textContent='Enter the Catacombs';$('questDesc').textContent='Find the purple portal. Press E to enter.'}else if(bossDefeated){$('questTitle').textContent='Dungeon Cleared!';$('questDesc').textContent='Find the exit portal and claim your progress.'}else{$('questTitle').textContent='Defeat the Bone Guardian';$('questDesc').textContent=`${runKills} enemies defeated · Explore deeper`}}
-function initScene(){scene=new THREE.Scene();scene.background=new THREE.Color(0x151b2b);camera=new THREE.PerspectiveCamera(72,window.innerWidth/window.innerHeight,.08,115);renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.7));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;$('game').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xb5beff,0x353041,2.05));const sun=new THREE.DirectionalLight(0xe6d3ad,1.3);sun.position.set(-8,18,13);scene.add(sun);playerRig=new THREE.Group();player=new THREE.Group();playerRig.add(player);scene.add(playerRig);const armor=mat(0x53688c,.7,.2),skin=mat(0xe0ba96),dark=mat(0x242a3a),blade=new THREE.MeshStandardMaterial({color:0x9bb8ec,metalness:.82,roughness:.18});cylinder(.45,.39,.92,armor,0,1.07,0,player);sphere(.31,skin,0,1.73,0,player);cylinder(.35,.3,.3,armor,0,1.99,0,player);box(.48,.16,.65,dark,0,1.51,-.02,player);for(let x of [-.56,.56]){sphere(.21,armor,x,1.37,0,player);cylinder(.15,.16,.8,armor,x,1.02,0,player);cylinder(.16,.16,.75,dark,x*.39,.37,0,player)}sword=new THREE.Group();player.add(sword);sword.position.set(.8,1.06,.1);sword.rotation.z=-.36;box(.13,1.13,.12,blade,0,.44,0,sword);box(.45,.08,.19,goldMat,0,-.12,0,sword);cylinder(.085,.1,.42,dark,0,-.33,0,sword);clock=new THREE.Clock();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.addEventListener('click',()=>{if(state==='playing'&&document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock?.()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement&&state==='playing'){yaw-=e.movementX*.0025;pitch=clamp(pitch+e.movementY*.002, -.65,.9)}});document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(k))e.preventDefault();if(e.repeat&&['e','q','v','escape','i','u','t','1','2','3','4'].includes(k))return;keys.add(k);if(k==='escape'){pause();return}if(state!=='playing')return;if(k==='v'){camMode=camMode==='third'?'first':'third';save.settings.camera=camMode;updateUI();persist()}if(k==='e')interact();if(k==='t'){autoCombat=!autoCombat;notify(autoCombat?'Auto combat enabled':'Auto combat disabled')}if(k==='q'&&dodgeTime<=0&&stamina>=25){stamina-=25;dodgeTime=.3;invulnerable=.38;speedBoost=Math.max(speedBoost,.2)}if(k==='i')openPanel('inventory');if(k==='u')openPanel('upgrade');if('1234'.includes(k))activateSkill(Number(k)-1)});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pause()});requestAnimationFrame(loop)}
+function initScene(){scene=new THREE.Scene();scene.background=new THREE.Color(0x151b2b);camera=new THREE.PerspectiveCamera(72,window.innerWidth/window.innerHeight,.08,115);renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.7));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;$('game').appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xb5beff,0x353041,2.05));const sun=new THREE.DirectionalLight(0xe6d3ad,1.3);sun.position.set(-8,18,13);scene.add(sun);playerRig=new THREE.Group();player=new THREE.Group();playerRig.add(player);scene.add(playerRig);const armor=mat(0x53688c,.7,.2),skin=mat(0xe0ba96),dark=mat(0x242a3a),blade=new THREE.MeshStandardMaterial({color:0x9bb8ec,metalness:.82,roughness:.18});cylinder(.45,.39,.92,armor,0,1.07,0,player);sphere(.31,skin,0,1.73,0,player);cylinder(.35,.3,.3,armor,0,1.99,0,player);box(.48,.16,.65,dark,0,1.51,-.02,player);for(let x of [-.56,.56]){sphere(.21,armor,x,1.37,0,player);cylinder(.15,.16,.8,armor,x,1.02,0,player);cylinder(.16,.16,.75,dark,x*.39,.37,0,player)}sword=new THREE.Group();player.add(sword);sword.position.set(.8,1.06,.1);sword.rotation.z=-.36;box(.13,1.13,.12,blade,0,.44,0,sword);box(.45,.08,.19,goldMat,0,-.12,0,sword);cylinder(.085,.1,.42,dark,0,-.33,0,sword);clock=new THREE.Clock();window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});renderer.domElement.addEventListener('click',()=>{if(state==='playing'&&document.pointerLockElement!==renderer.domElement)renderer.domElement.requestPointerLock?.()});document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement&&state==='playing'){yaw-=e.movementX*.0025;pitch=clamp(pitch+e.movementY*.002, -.65,.9)}});document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' ','tab'].includes(k))e.preventDefault();if(e.repeat&&['e','q','v','escape','i','u','t','h','1','2','3','4'].includes(k))return;keys.add(k);if(k==='escape'){pause();return}if(state!=='playing')return;if(k==='v'){camMode=camMode==='third'?'first':'third';save.settings.camera=camMode;updateUI();persist()}if(k==='e')interact();if(k==='t'){autoCombat=!autoCombat;notify(autoCombat?'Auto combat enabled':'Auto combat disabled')}if(k==='h'){showHitboxes=!showHitboxes;notify(showHitboxes?'Enemy hitboxes visible':'Enemy hitboxes hidden')}if(k==='q'&&dodgeTime<=0&&stamina>=25){stamina-=25;dodgeTime=.3;invulnerable=.38;speedBoost=Math.max(speedBoost,.2)}if(k==='i')openPanel('inventory');if(k==='u')openPanel('upgrade');if('1234'.includes(k))activateSkill(Number(k)-1)});window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pause()});requestAnimationFrame(loop)}
 function interact(){if(!nearby)return;let action=nearby.action;if(action==='enter'){buildDungeon();persist()}else if(action==='exit'){if(!bossDefeated){notify('Defeat the Bone Guardian before leaving!');return}save.health=Math.min(save.maxHealth,save.health+35);const earned=runGold;save.gold+=Math.round((120+35*depth)*(contract?.reward||1));gainXp(Math.round(80*depth*(contract?.reward||1)));persist();buildHub();notify(`Dungeon complete · ${earned} gold earned!`)}else if(action==='forge')openPanel('upgrade');else if(action==='craft')openPanel('inventory');else if(action==='chest'&&!nearby.opened){nearby.opened=true;nearby.g.visible=false;save.gold+=120*depth;save.gems+=1;if(Math.random()<.8)dropItem('boss');floater('TREASURE FOUND!','reward');persist();updateUI()}}
 function collides(x,z){let r=.42;for(const w of walls)if(Math.abs(x-w.x)<w.w/2+r&&Math.abs(z-w.z)<w.d/2+r)return true;return false}
 function attemptMove(dx,dz){let x=player.position.x,z=player.position.z;if(!collides(x+dx,z))player.position.x+=dx;if(!collides(player.position.x,z+dz))player.position.z+=dz}
@@ -500,6 +503,7 @@ defeatEnemy=function(e){
   refreshReforgedUI();
 };
 function refreshReforgedUI(){
+  const hitboxLabel=$('hitboxLabel');if(hitboxLabel)hitboxLabel.textContent=showHitboxes?'HITBOX VIEW: ON (H)':'HITBOX VIEW: OFF (H)';
   const contractLabel=$('contractLabel');if(contractLabel)contractLabel.textContent=world==='dungeon' ? 'TIER '+depth+' · '+(contract?.name||'EXPLORER').toUpperCase()+' · '+Math.round((contract?.reward||1)*100)+'% REWARDS' : 'CHOOSE YOUR NEXT CONTRACT';
   const status=$('blessingLabel'); if(status)status.textContent=runBlessing ? '✦ '+runBlessing.name.toUpperCase() : 'NO ACTIVE BLESSING';
   const node=$('staminaFill');if(node)node.style.width=stamina.toFixed(0)+'%';
@@ -515,50 +519,80 @@ function refreshReforgedUI(){
 }
 function updateEnemyAI(dt){
   const px=player.position.x,pz=player.position.z;
+  // Movement and damage use the same world X/Z positions. Animation is visual only.
   for(const e of enemies){
     if(!e.alive)continue;
-    const dx=px-e.x,dz=pz-e.z,d=Math.max(.001,Math.hypot(dx,dz));
-    e.cool=Math.max(0,e.cool-dt);
+    e.cool=Math.max(0,(e.cool||0)-dt);
     e.stunned=Math.max(0,(e.stunned||0)-dt);
-    e.attackFlash=Math.max(0,e.attackFlash-dt);
-    if(e.type==='boss'&&e.hp<e.max*.5&&e.phase===0){e.phase=1;e.speed*=1.2;e.damage*=1.20;notify('PHASE TWO · THE GUARDIAN CALLS ITS SENTINELS!');spawnGuardianSentinels(e)}
+    e.attackFlash=Math.max(0,(e.attackFlash||0)-dt);
+    if(e.type==='boss'&&e.hp<e.max*.5&&e.phase===0){
+      e.phase=1;e.speed*=1.18;e.damage*=1.2;
+      notify('GUARDIAN PHASE TWO · SENTINELS APPROACH');
+      spawnGuardianSentinels(e);
+    }
+    const dx=px-e.x,dz=pz-e.z;
+    const d=Math.max(0.0001,Math.hypot(dx,dz));
+    const melee=e.type!=='archer';
+    const desired=stopDistance(e.type);
     if(e.windup>0){
-      e.windup-=dt;
-      const opacity=Math.min(.75, .12+.58*(1-e.windup/(e.type==='boss'?(e.attackStyle==='shockwave'?1.3:.95):.6)));
-      e.warning.material.opacity=opacity;
-      e.warning.position.set(e.targetX,.055,e.targetZ);
-      e.warning.scale.setScalar(e.type==='boss'?(e.attackStyle==='shockwave'?1:1.1):1);
-      if(e.windup<=0){
+      // Telegraph stays at the locked impact location; enemy stands still while swinging.
+      e.windup=Math.max(0,e.windup-dt);
+      e.warning.material.opacity=Math.min(.7,.15+.52*(1-e.windup/Math.max(.01,e.windupLength||.65)));
+      e.warning.position.set(e.targetX,.07,e.targetZ);
+      if(e.windup===0){
         e.warning.material.opacity=0;
-        const targetDist=Math.hypot(px-e.targetX,pz-e.targetZ);
-        if(targetDist<(e.type==='boss'?(e.attackStyle==='shockwave'?4.2:3.3):e.type==='archer'?1.15:1.7))hurt(e.damage*(e.attackStyle==='shockwave'?1.12:1));
-        e.cool=e.type==='boss'?(e.phase?1.5:1.95):e.type==='archer'?2.15:1.35;
+        const radius=attackRadius(e.type,e.attackStyle);
+        if(hitsWarning(px,pz,e.targetX,e.targetZ,radius))hurt(e.damage*(e.attackStyle==='shockwave'?1.12:1));
+        e.cool=e.type==='boss'?(e.phase?1.5:1.95):e.type==='archer'?2.2:1.4;
         e.attackFlash=.21;
       }
-    }else if(e.stunned<=0&&d<16){
-      if(d>e.range){
-        const step=Math.min(d-e.range*.8,e.speed*dt),nx=e.x+dx/d*step,nz=e.z+dz/d*step;
-        if(!collides(nx,nz)){e.x=nx;e.z=nz;}
-      }else if(e.cool<=0){
-        if(e.type==='boss'){e.attackCount=(e.attackCount||0)+1;e.attackStyle=(e.attackCount%3===0||e.phase>0&&e.attackCount%2===0)?'shockwave':'slam';if(e.attackStyle==='shockwave'){e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.15,4.2,48);notify('GUARDIAN SHOCKWAVE · MOVE OUT OF THE CIRCLE!')}else{e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.6,3.4,40)}}
-        e.windup=e.type==='boss'?(e.attackStyle==='shockwave'?1.3:.95):e.type==='archer'?.85:.6;
-        e.targetX=e.type==='archer'||e.type==='boss'&&e.attackStyle==='shockwave'?px:e.x+dx/d*Math.min(d,e.type==='boss'?2.5:1.1);
-        e.targetZ=e.type==='archer'||e.type==='boss'&&e.attackStyle==='shockwave'?pz:e.z+dz/d*Math.min(d,e.type==='boss'?2.5:1.1);
-        if(e.type==='archer'){e.warning.geometry.dispose();e.warning.geometry=new THREE.RingGeometry(.25,1.15,32);}
-        e.warning.position.set(e.targetX,.06,e.targetZ);e.warning.material.opacity=.19;
+    }else if(e.stunned<=0&&d<18){
+      if(d>desired+.12){
+        const next=chaseStep(e.x,e.z,px,pz,Math.min(5,e.speed),dt,desired);
+        if(!collides(next.x,next.z)){e.x=next.x;e.z=next.z;}
+        else{
+          // Wall sliding prevents enemies locking themselves against rectangular corridors.
+          if(!collides(next.x,e.z))e.x=next.x;
+          else if(!collides(e.x,next.z))e.z=next.z;
+        }
+      }else if(d<.82&&melee){
+        // Small separation prevents the model from overlapping the player's body.
+        const next=moveAwayFromPlayer(e.x,e.z,px,pz,.82);
+        if(!collides(next.x,next.z)){e.x=next.x;e.z=next.z;}
       }
-      e.g.rotation.y=Math.atan2(dx,dz);
-    }else if(d>=16){
-      e.roam-=dt;
-      if(e.roam<0){e.roam=rand(2,5);e.dir=rand(0,6.28)}
-      const nx=e.x+Math.sin(e.dir)*dt*.35,nz=e.z+Math.cos(e.dir)*dt*.35;
-      if(!collides(nx,nz)){e.x=nx;e.z=nz;}
+      if(d<=desired+.25&&e.cool<=0){
+        if(e.type==='boss'){
+          e.attackCount=(e.attackCount||0)+1;
+          e.attackStyle=(e.attackCount%3===0||(e.phase&&e.attackCount%2===0))?'shockwave':'slam';
+        }else e.attackStyle=e.type==='archer'?'ranged':'melee';
+        e.windupLength=e.type==='boss'?(e.attackStyle==='shockwave'?1.35:1.0):e.type==='archer'?.92:.72;
+        e.windup=e.windupLength;
+        // Melee attacks are centred at the monster's feet; ranged attacks lock the player's location.
+        e.targetX=melee?(e.attackStyle==='shockwave'?px:e.x):px;
+        e.targetZ=melee?(e.attackStyle==='shockwave'?pz:e.z):pz;
+        const radius=attackRadius(e.type,e.attackStyle);
+        if(e.warning?.geometry)e.warning.geometry.dispose();
+        // Draw both a filled danger zone and a strong perimeter matching actual damage radius.
+        e.warning.geometry=new THREE.CircleGeometry(radius,48);
+        e.warning.material.opacity=.16;
+        e.warning.position.set(e.targetX,.07,e.targetZ);
+        e.warning.scale.setScalar(1);
+        if(e.type==='boss'&&e.attackStyle==='shockwave')notify('SHOCKWAVE · LEAVE THE RED CIRCLE!');
+      }
+      e.g.rotation.y=Math.atan2(px-e.x,pz-e.z);
+    }else if(d>=18){
+      // Far away enemies idle in place instead of wandering through the player's route.
+      e.roam-=dt;if(e.roam<0){e.roam=rand(2,4);e.dir=rand(0,6.28)}
     }
-    e.g.position.set(e.x,Math.sin(gameTick*2.6+e.x)*.045,e.z);
+    // Enemy rig position always follows gameplay position after the AI step.
+    e.g.position.set(e.x,Math.sin(gameTick*2.6+e.x)*.04,e.z);
     const scale=e.type==='boss'?1.78:e.type==='brute'?1.25:1;
-    e.g.scale.setScalar(scale*(1+e.attackFlash*.09));
-    const warn=e.windup>0?1:0;
-    e.g.rotation.z=warn?Math.sin(gameTick*19)*.04:0;
+    e.g.scale.setScalar(scale*(1+e.attackFlash*.07));
+    e.g.rotation.z=e.windup>0?Math.sin(gameTick*14)*.025:0;
+    if(e.debugRing){
+      e.debugRing.visible=showHitboxes;
+      e.debugRing.position.set(e.x,.085,e.z);
+    }
   }
 }
 updateEnemies=updateEnemyAI;
@@ -753,7 +787,7 @@ async function placeAssetModel(parent,key,actorTag){
     const actor={
       key,root:parent,model:sceneModel,enemy:actorTag,
       mixer:data.animations?.length?new THREE.AnimationMixer(sceneModel):null,
-      clips:data.animations||[],state:'',action:null,lastX:parent.position.x,lastZ:parent.position.z
+      clips:data.animations||[],state:'',action:null,lastX:parent.position.x,lastZ:parent.position.z,rootAnchor:sceneModel.position.clone()
     };
     // Hide procedural artwork only after a validated replacement exists.
     if(!sceneModel.children.length || !Number.isFinite(sceneModel.scale.x) || sceneModel.scale.x<=0){parent.remove(sceneModel);return;}
@@ -778,6 +812,16 @@ function updateAssetActors(dt){
     }
     if(save.settings.models==='off')continue;
     if(a.mixer)a.mixer.update(dt);
+    // GLB root motion may translate the visible model without moving its collision position.
+    // Clamp root translation back to the initial local anchor; disable drifting models.
+    if(a.rootAnchor){
+      const offset=a.model.position.distanceTo(a.rootAnchor);
+      if(!Number.isFinite(offset)||offset>1.25){
+        a.model.visible=false;
+        for(const child of a.root.children)if(child!==a.model)child.visible=true;
+        a.disabledForDrift=true;
+      }else if(!a.disabledForDrift){a.model.position.copy(a.rootAnchor)}
+    }
     if(a.key==='hero'){
       const moving=keys.has('w')||keys.has('a')||keys.has('s')||keys.has('d');
       setActorAnimation(a,moving?'walk':'idle');
@@ -795,7 +839,7 @@ function toggleAssetModels(){
   restorePlayableHero();
   save.settings.models=enabled?'on':'off';
   for(const actor of assetRuntime.actors){
-    actor.model.visible=enabled;
+    actor.model.visible=enabled&&!actor.disabledForDrift;
     for(const child of actor.root.children)if(child!==actor.model)child.visible=!enabled;
     if(actor.key==='hero'&&sword)sword.visible=true;
   }
@@ -832,7 +876,15 @@ const beforeSpawnAsset=spawnEnemy;
 spawnEnemy=function(x,z,type){
   beforeSpawnAsset(x,z,type);
   const e=enemies[enemies.length-1];
-  if(e)void placeAssetModel(e.g,e.type,e);
+  if(e){
+    e.debugRing=mesh(
+      new THREE.RingGeometry(type==='boss'?.76:.55,type==='boss'?.83:.62,32),
+      new THREE.MeshBasicMaterial({color:0x7bedf0,transparent:true,opacity:.7,side:THREE.DoubleSide,depthWrite:false})
+    );
+    e.debugRing.rotation.x=-Math.PI/2;
+    e.debugRing.visible=false;
+    void placeAssetModel(e.g,e.type,e);
+  }
 };
 const beforePlayerAsset=updatePlayer;
 updatePlayer=function(dt){
