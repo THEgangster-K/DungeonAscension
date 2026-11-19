@@ -1,5 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer,eliteBountyReward} from './combat-math.mjs';
+import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer,eliteBountyReward,objectiveBearing} from './combat-math.mjs';
 
 const $=id=>document.getElementById(id);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1686,6 +1686,114 @@ ascendLights=function(){
   // Preserve bright navigation and combat lighting on every graphics preset.
   if(luminous.follow)luminous.follow.visible=true;
   for(const l of luminous.worldLights)l.visible=true;
+};
+
+
+// v1.2 WAYFINDER — readable world-space objectives and enemy warnings, without changing combat rules.
+const wayfinder={markers:[],pulse:0,weaponTime:0,combatVibration:0,active:false,previousView:''};
+const cautionRingMat=new THREE.MeshBasicMaterial({color:0xffbd72,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+function wayfinderObjective(){
+  if(world==='hub'){
+    const entrance=interactables.find(i=>i.action==='enter');
+    return entrance?{x:entrance.x,z:entrance.z,name:'DUNGEON ENTRANCE'}:null;
+  }
+  if(bossDefeated){
+    const exit=interactables.find(i=>i.action==='exit');
+    return exit?{x:exit.x,z:exit.z,name:'EXIT PORTAL'}:null;
+  }
+  const boss=enemies.find(e=>e.alive&&e.type==='boss');
+  if(boss)return{x:boss.x,z:boss.z,name:'BONE GUARDIAN'};
+  // During generation, keep pointing along the route until the boss appears.
+  const last=rooms[rooms.length-1];
+  return last?{x:0,z:last.z,name:'BOSS CHAMBER'}:null;
+}
+function updateWayfinder(){
+  const label=$('directionLabel'),arrow=$('directionArrow'),distance=$('directionDistance');
+  if(!label||!arrow||!distance||!player)return;
+  const target=wayfinderObjective();
+  if(!target){label.textContent='EXPLORING';distance.textContent='';return}
+  const bearing=objectiveBearing(player.position.x,player.position.z,target.x,target.z,yaw);
+  arrow.style.transform='rotate('+bearing.angle.toFixed(3)+'rad)';
+  label.textContent=target.name;
+  distance.textContent=Math.round(bearing.distance)+' m';
+  const near=bearing.distance<3;
+  arrow.style.opacity=near?'.48':'1';
+}
+function assignWarningOutline(e){
+  if(!e||!e.g||e.warningOutline)return;
+  const ring=mesh(new THREE.RingGeometry(.965,1,48),cautionRingMat.clone());
+  ring.rotation.x=-Math.PI/2;ring.position.set(e.x,.083,e.z);ring.visible=false;
+  e.warningOutline=ring;
+}
+function updateWarningOutlines(dt){
+  for(const e of enemies){
+    const ring=e.warningOutline;if(!ring)continue;
+    const active=e.alive&&e.windup>0;
+    ring.visible=active;
+    if(!active)continue;
+    const radius=attackRadius(e.type,e.attackStyle);
+    ring.scale.setScalar(radius);
+    ring.position.set(e.targetX,.083,e.targetZ);
+    const stage=1-e.windup/Math.max(.1,e.windupLength||.7);
+    ring.material.opacity=Math.min(.9,.4+stage*.46);
+    ring.material.color.setHex(e.type==='boss'?0xffae65:e.type==='archer'?0xfab56d:0xffd8a0);
+    ring.rotation.z=0;
+  }
+}
+function updateSwordFollowThrough(dt){
+  if(!sword||world!=='dungeon'||state!=='playing')return;
+  // Visual-only easing on the detailed forged sword; damage still uses existing hit checks.
+  if(wayfinder.weaponTime>0){
+    wayfinder.weaponTime=Math.max(0,wayfinder.weaponTime-dt);
+    const elapsed=.31-wayfinder.weaponTime;
+    const fraction=Math.min(1,elapsed/.31);
+    const swing=Math.sin(Math.PI*fraction);
+    sword.rotation.z=-.36-.78*swing;
+    sword.rotation.x=.18*Math.sin(Math.PI*2*fraction);
+    sword.rotation.y=.26*Math.sin(Math.PI*fraction);
+  }else{
+    sword.rotation.z+=( -.36-sword.rotation.z)*Math.min(1,dt*16);
+    sword.rotation.x+=(0-sword.rotation.x)*Math.min(1,dt*14);
+    sword.rotation.y+=(0-sword.rotation.y)*Math.min(1,dt*14);
+  }
+}
+const beforeWayfinderSpawn=spawnEnemy;
+spawnEnemy=function(x,z,type){
+  beforeWayfinderSpawn(x,z,type);
+  assignWarningOutline(enemies[enemies.length-1]);
+};
+const beforeWayfinderAttack=performAttack;
+performAttack=function(){
+  const target=nearestEnemy(3.15);
+  beforeWayfinderAttack();
+  if(target)wayfinder.weaponTime=.31;
+};
+const beforeWayfinderPlayer=updatePlayer;
+updatePlayer=function(dt){
+  beforeWayfinderPlayer(dt);
+  updateSwordFollowThrough(dt);
+};
+const beforeWayfinderEnemies=updateEnemies;
+updateEnemies=function(dt){
+  beforeWayfinderEnemies(dt);
+  updateWarningOutlines(dt);
+};
+const beforeWayfinderDraw=drawMap;
+drawMap=function(){
+  beforeWayfinderDraw();
+  updateWayfinder();
+};
+const beforeWayfinderBuildHub=buildHub;
+buildHub=function(){
+  beforeWayfinderBuildHub();
+  wayfinder.weaponTime=0;
+  updateWayfinder();
+};
+const beforeWayfinderBuildDungeon=buildDungeon;
+buildDungeon=function(){
+  beforeWayfinderBuildDungeon();
+  wayfinder.weaponTime=0;
+  updateWayfinder();
 };
 
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
