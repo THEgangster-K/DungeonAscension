@@ -86,3 +86,14 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #hitboxLabel{color:#8de7df;font-size:10px}
 #combatStatus .keyhint{color:#c6cae6;line-height:1.4}
 #crosshair{filter:drop-shadow(0 0 4px #000);}
+
+/* v0.9 Elite Hunts: an unobtrusive, readable optional objective */
+#eliteHuntPanel{position:fixed;top:352px;left:22px;width:235px;padding:13px 14px;border:1px solid #c19d5988;background:linear-gradient(150deg,#141b2de8,#2d2232dc);pointer-events:none;border-radius:10px;box-shadow:0 8px 24px #0005}
+.elite-hunt-heading{display:flex;gap:8px;justify-content:space-between;align-items:center;color:#f9d89a;font:800 12px Cinzel,Georgia,serif}
+.elite-hunt-heading span{color:#bcaec4;font:700 8px Inter,Arial,sans-serif;letter-spacing:1px}
+#eliteHuntStatus{margin-top:9px;font-size:10px;color:#f5e9d9;font-weight:700;line-height:1.45;letter-spacing:.25px}
+.elite-hunt-track{height:7px;margin-top:9px;background:#201927;border:1px solid #ffffff30;border-radius:9px;overflow:hidden}
+#eliteHuntFill{height:100%;width:0%;background:linear-gradient(90deg,#b07447,#f2c77c);transition:width .15s ease}
+#eliteHuntReward{display:block;margin-top:8px;color:#d8c9ab;line-height:1.4;font-size:9px}
+@media(max-width:850px){#eliteHuntPanel{top:321px;left:8px;width:189px;padding:9px}}
+@media(max-width:600px){#eliteHuntPanel{top:auto;bottom:132px;left:8px;width:180px;padding:8px}#eliteHuntReward{display:none}}
