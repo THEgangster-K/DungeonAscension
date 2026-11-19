@@ -81,3 +81,8 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #bossPhase{font-family:Inter,Arial,sans-serif;font-size:9px!important;color:#f7a46b!important;letter-spacing:1.5px;flex-basis:100%;padding-top:3px;text-align:center}
 #bossBarFill{transition:width .18s ease}
 #bossPanel{border-color:#e2a66bba}
+
+/* v0.8 combat feedback */
+#hitboxLabel{color:#8de7df;font-size:10px}
+#combatStatus .keyhint{color:#c6cae6;line-height:1.4}
+#crosshair{filter:drop-shadow(0 0 4px #000);}
