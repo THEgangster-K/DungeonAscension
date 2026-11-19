@@ -1,4 +1,39 @@
-# Dungeon Ascension — Elite Hunts v0.9
+# Dungeon Ascension — Visual Ascension v1.0
+
+## v1.0 Visual Ascension — major art, effects and presentation update
+This update makes the existing browser game more atmospheric and readable while retaining the prior movement, Nightmare collision fixes, Elite Hunts, dungeon contracts, crafting, loot, upgrades and permanent progress.
+
+**Environment and graphics**
+- Procedurally generated, repeatable stone texture applied to floor, walls and architectural surfaces
+- New decorated columns, stone beams, ornate trim, rune discs, relics, coffins and hanging cages
+- Boss arena additions, floating crystals, and changing room decoration throughout dungeon tiers
+- Floating dust/magic particles with Low / Medium / High density levels
+- Distant point lights culled based on player proximity to limit active lighting cost
+- Animated arcane portal rings, rotating central crystals and more elaborate treasure chests
+- Detailed built-in player armour, helmet, shoulder and sword accents without relying on a broken imported hero model
+- More distinctive visual details for brutes, archers, skeletons and bosses
+
+**Combat and rewards**
+- Additional hit impacts and ability pulses without modifying how gameplay hitboxes or damage are calculated
+- More pronounced boss and elite victories, chest reward animations and effects
+- An updated dark-fantasy UI with improved readability, contrast, animations, and accessible reduced-motion styles
+- Optional original procedural sound effects for weapon strikes, impact, abilities, loot, boss defeats and portals
+- Existing collision and Nightmare chasing logic is left unchanged
+
+**Settings, performance, and saves**
+- Esc → Graphics cycles Low / Medium / High (rendering resolution, particle count and number of nearby active lights)
+- Esc → Sound Effects toggles Web Audio effects and persists the choice
+- Esc → 3D Character Models retains the experimental external enemy model toggle. The built-in player remains the safe visible model
+- Save version stays 1 and localStorage key remains `dungeon-ascension-v0.1`; old saves load with defaults for new preferences
+- No additional remote asset files are required for the v1.0 visual layer; generated materials and effects are local
+- The visual code bounds concurrent impact rings and cleans up transient atmospheric particles when changing worlds
+- Rendering quality and frame rates depend on device, GPU and browser. No measured 60 FPS guarantee
+
+**Testing limitations:** JavaScript syntax checks, source-level integration checks, and combat regression tests are supported by the repository test suite; a full interactive 3D browser playthrough has not been verified by these checks. The environment is still a stylised procedural game; this is not a photorealistic, professionally modelled asset replacement.
+
+**Play:** https://dungeonascension.onrender.com — refresh using Ctrl + Shift + R to load the newest files.
+
+## Previous release — Elite Hunts v0.9
 
 ## v0.9 Elite Hunts and combat stability
 Each dungeon now includes one optional marked elite enemy with extra health, slightly higher attack damage, and a guaranteed completion bounty. This is an additional challenge, not a requirement to defeat the main boss or use the exit portal.
