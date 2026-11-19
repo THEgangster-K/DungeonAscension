@@ -29,3 +29,13 @@ export function eliteBountyReward(tier,multiplier=1){
   return {gold:Math.round((125+level*85)*bonus),gems:Math.max(1,Math.round(level*.6*bonus)),xp:Math.round((65+level*35)*bonus)};
 }
 export function eliteHuntTierEligible(tier){return Number.isFinite(tier)&&tier>=1&&tier<=5}
+
+// v1.2: compass information is derived from world-space coordinates, never from animated meshes.
+export function objectiveBearing(fromX,fromZ,toX,toZ,heading=0){
+  const dx=toX-fromX,dz=toZ-fromZ;
+  if(![fromX,fromZ,toX,toZ,heading].every(Number.isFinite))return {angle:0,distance:0};
+  const distance=Math.hypot(dx,dz);
+  if(distance<.001)return {angle:0,distance:0};
+  const a=Math.atan2(dx,dz)+heading;
+  return {angle:Math.atan2(Math.sin(a),Math.cos(a)),distance};
+}
