@@ -198,3 +198,14 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #bossBarFill{filter:brightness(1.15)}
 #eliteHuntPanel{border-color:#d4a95a99}
 #mapNote{color:#d8d8e8}
+
+/* v1.2 Wayfinder — navigational clarity without flattening detailed rendering */
+.wayfinder{position:fixed;top:233px;left:22px;z-index:4;display:flex;align-items:center;gap:12px;width:242px;min-height:68px;padding:11px 13px;pointer-events:none;border-radius:11px}
+.wayfinder-compass{display:grid;place-items:center;width:46px;height:46px;flex:none;border:1px solid #e0b87f7d;border-radius:50%;background:radial-gradient(circle,#394059,#1b2536);box-shadow:inset 0 0 13px #eac18115,0 0 16px #eac18118}
+#directionArrow{font-family:Arial,sans-serif;display:inline-block;font-size:25px;line-height:1;color:#f7d58e;text-shadow:0 0 10px #f5bf77bb;transform-origin:center;transition:transform .12s linear}
+.wayfinder-info{display:flex;flex-direction:column;min-width:0;gap:4px}
+.wayfinder-info small{font:700 9px Inter,Arial,sans-serif;color:#b9bfcd;letter-spacing:.11em}
+#directionLabel{font:800 11px Cinzel,Georgia,serif;color:#fff0cd;line-height:1.2}
+#directionDistance{color:#a7dff9;font:700 11px Inter,Arial,sans-serif}
+@media(max-width:850px){.wayfinder{left:8px;top:219px;width:198px;padding:9px 10px;gap:8px}.wayfinder-compass{width:38px;height:38px}#directionLabel{font-size:10px}}
+@media(max-width:600px){.wayfinder{top:182px;left:8px;width:168px;min-height:51px;padding:6px}.wayfinder-info small{display:none}#directionLabel{font-size:9px}.wayfinder-compass{width:31px;height:31px}#directionArrow{font-size:19px}}
