@@ -36,6 +36,7 @@ export function objectiveBearing(fromX,fromZ,toX,toZ,heading=0){
   if(![fromX,fromZ,toX,toZ,heading].every(Number.isFinite))return {angle:0,distance:0};
   const distance=Math.hypot(dx,dz);
   if(distance<.001)return {angle:0,distance:0};
-  const a=Math.atan2(dx,dz)+heading;
+  // Game camera faces -Z at heading 0; positive UI angles turn clockwise.
+  const a=Math.atan2(dx,-dz)+heading;
   return {angle:Math.atan2(Math.sin(a),Math.cos(a)),distance};
 }
