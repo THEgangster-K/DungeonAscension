@@ -21,3 +21,11 @@ export function moveAwayFromPlayer(x,z,px,pz,minDistance){
   if(d<1e-6)return {x:px+minDistance,z:pz};
   return {x:px+dx/d*minDistance,z:pz+dz/d*minDistance};
 }
+
+// v0.9 — Bounty rewards are deterministic and can be checked separately from graphics.
+export function eliteBountyReward(tier,multiplier=1){
+  const level=Math.max(1,Math.min(5,Math.floor(Number(tier)||1)));
+  const bonus=Math.max(1,Math.min(3,Number(multiplier)||1));
+  return {gold:Math.round((125+level*85)*bonus),gems:Math.max(1,Math.round(level*.6*bonus)),xp:Math.round((65+level*35)*bonus)};
+}
+export function eliteHuntTierEligible(tier){return Number.isFinite(tier)&&tier>=1&&tier<=5}
