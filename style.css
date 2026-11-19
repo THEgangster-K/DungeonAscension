@@ -185,3 +185,6 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
  100%{opacity:0;transform:translate(-50%,9px) scale(1)}
 }
 @media(prefers-reduced-motion:reduce){#treasureToast.show{animation:none;opacity:1;transform:translate(-50%,0)}}
+
+#audioBtn{border:1px solid #d4b58166;background:linear-gradient(125deg,#292b42,#1a2031);color:#f3ddbc;letter-spacing:.07em}
+#audioBtn:hover{filter:brightness(1.16)}
