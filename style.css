@@ -97,3 +97,75 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 #eliteHuntReward{display:block;margin-top:8px;color:#d8c9ab;line-height:1.4;font-size:9px}
 @media(max-width:850px){#eliteHuntPanel{top:321px;left:8px;width:189px;padding:9px}}
 @media(max-width:600px){#eliteHuntPanel{top:auto;bottom:132px;left:8px;width:180px;padding:8px}#eliteHuntReward{display:none}}
+
+/* v1.0 VISUAL ASCENSION — cohesive dark-fantasy interface and cinematic presentation */
+:root{
+  --gold:#f1ca81;
+  --accent:#a98ff5;
+  --ink:#f9f0e6;
+  --panel:#111522;
+  --line:rgba(246,209,153,.19)
+}
+#game canvas{filter:contrast(1.095) saturate(1.18);transform:translateZ(0)}
+#vignette{background:radial-gradient(ellipse 69% 72% at 50% 45%,transparent 32%,rgba(5,7,17,.34) 68%,rgba(3,4,10,.80) 100%);mix-blend-mode:multiply}
+#cinematicFlash{position:fixed;inset:0;z-index:6;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 46%,rgba(255,237,185,.36),rgba(185,103,75,.12) 48%,transparent 75%);}
+#victoryBanner{position:fixed;top:19%;left:50%;transform:translate(-50%,-18px) scale(.96);font:900 clamp(22px,3vw,43px) Cinzel,Georgia,serif;color:#ffe8b2;letter-spacing:.13em;text-align:center;text-shadow:0 3px 2px #110b12,0 0 28px #f9ad5d88;opacity:0;z-index:12;pointer-events:none;width:min(90vw,820px)}
+#victoryBanner.show{animation:ascendVictory 2.1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ascendVictory{
+  0%{opacity:0;transform:translate(-50%,-28px) scale(.9)}
+  20%,70%{opacity:1;transform:translate(-50%,0) scale(1)}
+  100%{opacity:0;transform:translate(-50%,8px) scale(1.04)}
+}
+#qualityNotice{color:#d7b68b;font-size:9px;letter-spacing:.07em}
+#visualZone{color:#8eb7f8;font-size:9px}
+.top-left.glass,.top-right.glass,.quest.glass,.bottom-right.glass,
+#combatStatus.glass,#eliteHuntPanel.glass{
+  background:linear-gradient(140deg,rgba(23,29,46,.93),rgba(11,15,27,.91));
+  border:1px solid rgba(206,171,118,.22);
+  box-shadow:0 14px 34px #03060c6b, inset 0 1px 0 #ffffff10;
+  backdrop-filter:blur(12px)
+}
+#titleScreen{
+  background:
+    radial-gradient(circle at 51% 26%,#c69b652e,transparent 30%),
+    radial-gradient(circle at 5% 87%,#62568c4b,transparent 45%),
+    radial-gradient(circle at 95% 20%,#334f6f33,transparent 45%),
+    linear-gradient(135deg,#05070e,#131728 52%,#080a14)
+}
+.title-content h1{
+  font-weight:900;
+  line-height:1.04;
+  letter-spacing:.055em;
+  filter:drop-shadow(0 14px 32px #020207a0)
+}
+.title-content h1 em{
+  background:linear-gradient(110deg,#fff3cf,#e2ba6c 40%,#fae2a4 70%,#b38b53);
+  -webkit-background-clip:text;background-clip:text;color:transparent
+}
+.primary{
+  background:linear-gradient(115deg,#cda461,#f3d38a 48%,#bb9559);
+  border:1px solid #ffe1ac;
+  color:#171723;
+  text-shadow:none;
+  font-weight:900;
+  box-shadow:0 10px 38px #dba66025, inset 0 1px 0 #fff9dba8;
+  transition:transform .16s,filter .16s,box-shadow .16s
+}
+.primary:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-2px);box-shadow:0 15px 38px #dba66055}
+#bossPanel,#targetPanel{box-shadow:0 10px 35px #05060caa;backdrop-filter:blur(12px)}
+#bossBarFill{background:linear-gradient(90deg,#8f3a53,#d86e55,#ffc187)}
+.bar.hp>div{background:linear-gradient(90deg,#a63d56,#ed6675)}
+.bar.xp>div{background:linear-gradient(90deg,#6967c4,#b398fa)}
+#interact{border:1px solid #f1c67a80;background:#121827d9;box-shadow:0 6px 24px #0009}
+#floaters .floater{filter:drop-shadow(0 3px 5px #000b)}
+.window,.pause-card{
+  border:1px solid #c49c6866;
+  background:linear-gradient(145deg,#1a2235,#121727 58%,#1c1a2a);
+  box-shadow:0 25px 110px #020207d9
+}
+.item{background:linear-gradient(145deg,#2c2940,#171d2c);border:1px solid #e9d1a625}
+.item:hover{border-color:#e8ba7a;box-shadow:0 8px 24px #05060a66}
+@media(prefers-reduced-motion:reduce){
+  #victoryBanner.show{animation:none;opacity:1;transform:translate(-50%,0)}
+  .primary,.item{transition:none}
+}
