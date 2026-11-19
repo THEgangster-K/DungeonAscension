@@ -1,3 +1,6 @@
+## v0.7.1 — Player visibility hotfix
+The optional third-party knight GLB could hide the original character without displaying a valid replacement, leaving only the sword visible. The playable hero now always uses the built-in animated model until the imported knight's rig, orientation, bounds, and animation have been fully validated. Detailed GLB enemy models remain optional and can be disabled from the pause menu. This change preserves the same save key and all existing gameplay features.
+
 # Dungeon Ascension — Shadows of the Deep v0.7
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
