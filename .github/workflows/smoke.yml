@@ -14,7 +14,7 @@ jobs:
       - name: Check JavaScript syntax
         run: node --check game.js
       - name: Test enemy chase and hitbox geometry
-        run: node --test tests/combat.test.mjs
+        run: node --test tests/combat.test.mjs tests/visual.test.mjs
       - name: Check website assets
         run: |
           test -s index.html
@@ -22,5 +22,6 @@ jobs:
           test -s game.js
           test -s combat-math.mjs
           test -s tests/combat.test.mjs
+          test -s tests/visual.test.mjs
           grep -q 'src="game.js"' index.html
           grep -q 'href="style.css"' index.html
