@@ -33,7 +33,7 @@ test('UI additions and controls are present',()=>{
     assert.ok(page.includes('id="'+id+'"'),id);
   }
   assert.match(page,/src="game\.js"/);
-  assert.match(page,/LUMINOUS ARMOUR · v1\.1\.0/);
+  assert.match(page,/WAYFINDER · v1\.2\.0/);
   assert.match(css,/#victoryBanner\.show/);
   assert.match(css,/#treasureToast\.show/);
   assert.match(css,/prefers-reduced-motion/);
@@ -48,6 +48,15 @@ test('v1.1 lighting and non-blocky equipment geometry are wired',()=>{
   assert.match(game,/new THREE\.PointLight\(0xffdbab/);
   assert.match(game,/new THREE\.DirectionalLight\(0x90b9ee/);
   assert.match(game,/luminous\.follow\.position\.set\(player\.position\.x/);
-  assert.match(page,/LUMINOUS ARMOUR · v1\.1\.0/);
+  assert.match(page,/WAYFINDER · v1\.2\.0/);
   assert.match(css,/#vignette\{background:radial-gradient\(ellipse 90%/);
+});
+
+test('v1.2 compass and danger outline are wired without replacing combat AI',()=>{
+ for(const id of ['directionArrow','directionLabel','directionDistance'])assert.ok(page.includes('id="'+id+'"'),id);
+ for(const fn of ['wayfinderObjective','updateWayfinder','assignWarningOutline','updateWarningOutlines','updateSwordFollowThrough'])assert.ok(game.includes('function '+fn+'('),fn);
+ assert.match(game,/attackRadius\(e\.type,e\.attackStyle\)/);
+ assert.match(game,/objectiveBearing\(player\.position\.x,player\.position\.z/);
+ assert.match(game,/const beforeWayfinderEnemies=updateEnemies/);
+ assert.match(css,/#directionArrow/);
 });
