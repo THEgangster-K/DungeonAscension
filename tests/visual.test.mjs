@@ -33,8 +33,21 @@ test('UI additions and controls are present',()=>{
     assert.ok(page.includes('id="'+id+'"'),id);
   }
   assert.match(page,/src="game\.js"/);
-  assert.match(page,/VISUAL ASCENSION · v1\.0\.0/);
+  assert.match(page,/LUMINOUS ARMOUR · v1\.1\.0/);
   assert.match(css,/#victoryBanner\.show/);
   assert.match(css,/#treasureToast\.show/);
   assert.match(css,/prefers-reduced-motion/);
+});
+
+test('v1.1 lighting and non-blocky equipment geometry are wired',()=>{
+  for(const sym of ['shapedBlade','shapedKnight','enhanceEnemyShape','visibleStoneLighting','curvedPlateShape']){
+    assert.ok(game.includes('function '+sym+'('),sym);
+  }
+  assert.match(game,/new THREE\.ExtrudeGeometry\(shape/);
+  assert.match(game,/new THREE\.LatheGeometry\(/);
+  assert.match(game,/new THREE\.PointLight\(0xffdbab/);
+  assert.match(game,/new THREE\.DirectionalLight\(0x90b9ee/);
+  assert.match(game,/luminous\.follow\.position\.set\(player\.position\.x/);
+  assert.match(page,/LUMINOUS ARMOUR · v1\.1\.0/);
+  assert.match(css,/#vignette\{background:radial-gradient\(ellipse 90%/);
 });
