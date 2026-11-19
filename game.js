@@ -8,7 +8,7 @@ const SAVE_KEY='dungeon-ascension-v0.1';
 const VERSION=1;
 const tiers=[{name:'Common',color:'#b8b9c5',weight:55,scale:1},{name:'Uncommon',color:'#68d88e',weight:25,scale:1.22},{name:'Rare',color:'#72a7ff',weight:12,scale:1.55},{name:'Epic',color:'#bd8dff',weight:6,scale:1.95},{name:'Legendary',color:'#f6bd58',weight:1.8,scale:2.6},{name:'Mythic',color:'#ff6d88',weight:.2,scale:3.5}];
 const names=['Rustbound','Emberguard','Stormforged','Moonfall','Oathkeeper','Ironclad','Starshard','Runemarked','Graveborn','Dawnbringer'];
-const defaultSave=()=>({version:VERSION,level:1,xp:0,gold:250,gems:0,maxHealth:110,health:110,attackUpgrade:0,healthUpgrade:0,armorUpgrade:0,critUpgrade:0,luckUpgrade:0,mastery:0,depth:1,clears:0,kills:0,bossKills:0,inventory:[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}],equipped:{weapon:'starter',armor:null},questRewardClaimed:0,settings:{quality:'medium',camera:'third',models:'on'},created:Date.now()});
+const defaultSave=()=>({version:VERSION,level:1,xp:0,gold:250,gems:0,maxHealth:110,health:110,attackUpgrade:0,healthUpgrade:0,armorUpgrade:0,critUpgrade:0,luckUpgrade:0,mastery:0,depth:1,clears:0,kills:0,bossKills:0,inventory:[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}],equipped:{weapon:'starter',armor:null},questRewardClaimed:0,settings:{quality:'medium',camera:'third',models:'on',audio:'on'},created:Date.now()});
 let save=defaultSave();let noticeTime=0;let uid=0;let autoCombat=true;let showHitboxes=false;
 const nextXp=lv=>Math.round(85*Math.pow(lv,1.32));
 function cleanSave(s){if(!s||typeof s!=='object')return null;let d=defaultSave();for(const k of Object.keys(d))if(Object.prototype.hasOwnProperty.call(s,k))d[k]=s[k];d.version=VERSION;for(const k of ['level','xp','gold','gems','attackUpgrade','healthUpgrade','armorUpgrade','critUpgrade','luckUpgrade','mastery','depth','clears','kills','bossKills'])d[k]=clamp(Number(d[k])||0,0,1e10);d.level=Math.max(1,Math.floor(d.level));d.depth=clamp(Math.floor(d.depth),1,5);d.maxHealth=clamp(110+d.healthUpgrade*18,110,1e7);d.health=clamp(Number(d.health)||d.maxHealth,1,d.maxHealth);if(!Array.isArray(d.inventory))d.inventory=[];d.inventory=d.inventory.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&['weapon','armor'].includes(x.slot)).slice(0,120);if(!d.inventory.length)d.inventory=[{id:'starter',name:'Worn Sword',slot:'weapon',tier:0,power:9,bonus:0}];if(!d.equipped||typeof d.equipped!=='object')d.equipped={weapon:d.inventory[0].id,armor:null};for(const slot of ['weapon','armor'])if(!d.inventory.some(x=>x.id===d.equipped[slot]&&x.slot===slot))d.equipped[slot]=slot==='weapon'?d.inventory.find(x=>x.slot===slot)?.id||null:null;d.settings={...defaultSave().settings,...(d.settings||{})};return d;}
@@ -1350,6 +1350,7 @@ initScene=function(){
   ascendTextures();
   ascendHeroDetails();
   const shield=$('qualityNotice');if(shield)shield.textContent='VISUAL ASCENSION ACTIVE';
+  const audioButton=$('audioBtn');if(audioButton)audioButton.textContent='SOUND EFFECTS: '+(save.settings.audio==='off'?'OFF':'ON');
 };
 const originalAscendDungeon=buildDungeon;
 buildDungeon=function(){
@@ -1438,7 +1439,96 @@ updatePlayer=function(dt){
   }
 };
 
+
+// v1.0 — compact procedural action sound design (no copyrighted audio assets).
+const actionAudio={context:null,master:null,last:new Map(),enabled:true};
+function initActionAudio(){
+  if(save.settings.audio==='off'){actionAudio.enabled=false;return}
+  actionAudio.enabled=true;
+  try{
+    const AudioEngine=window.AudioContext||window.webkitAudioContext;
+    if(!AudioEngine)return;
+    if(!actionAudio.context){
+      actionAudio.context=new AudioEngine();
+      actionAudio.master=actionAudio.context.createGain();
+      actionAudio.master.gain.value=.13;
+      actionAudio.master.connect(actionAudio.context.destination);
+    }
+    if(actionAudio.context.state==='suspended')void actionAudio.context.resume().catch(()=>{});
+  }catch(err){console.warn('Optional sound disabled',err);actionAudio.enabled=false}
+}
+function actionSound(kind){
+  if(!actionAudio.enabled||!actionAudio.context||actionAudio.context.state!=='running')return;
+  const ctx=actionAudio.context,t=ctx.currentTime;
+  const gap=kind==='strike'?.105:.18,last=actionAudio.last.get(kind)||-1;
+  if(last>=0&&t-last<gap)return;
+  actionAudio.last.set(kind,t);
+  const presets={
+    strike:[230,110,.085,'sawtooth'],
+    impact:[120,55,.11,'triangle'],
+    skill:[340,790,.22,'sine'],
+    loot:[530,870,.34,'sine'],
+    elite:[210,470,.41,'triangle'],
+    boss:[150,62,.58,'sawtooth'],
+    portal:[260,530,.3,'sine']
+  };
+  const [freq,end,duration,type]=presets[kind]||presets.strike;
+  try{
+    const osc=ctx.createOscillator(),amp=ctx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq,t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(30,end),t+duration);
+    amp.gain.setValueAtTime(.0001,t);
+    amp.gain.exponentialRampToValueAtTime(kind==='boss'?.24:.12,t+.012);
+    amp.gain.exponentialRampToValueAtTime(.0001,t+duration);
+    osc.connect(amp);amp.connect(actionAudio.master);
+    osc.start(t);osc.stop(t+duration+.025);
+    osc.onended=()=>{osc.disconnect();amp.disconnect()};
+  }catch(err){console.warn('Sound effect unavailable',err)}
+}
+const originalSoundStart=startGame;
+startGame=function(){originalSoundStart();initActionAudio()};
+const originalSoundAttack=performAttack;
+performAttack=function(){
+  const target=nearestEnemy(3.15);
+  originalSoundAttack();
+  if(target)actionSound('strike');
+};
+const originalSoundDamage=damageEnemy;
+damageEnemy=function(e,amount,chance){
+  const before=e?.hp;
+  originalSoundDamage(e,amount,chance);
+  if(e&&e.hp<before)actionSound('impact');
+};
+const originalSoundSkill=activateSkill;
+activateSkill=function(n){
+  const before=skillCD[n];originalSoundSkill(n);
+  if(skillCD[n]>before)actionSound('skill');
+};
+const originalSoundDefeat=defeatEnemy;
+defeatEnemy=function(e){
+  const elite=!!e.elite,boss=e.type==='boss';
+  originalSoundDefeat(e);
+  if(boss)actionSound('boss');else if(elite)actionSound('elite');
+};
+const originalSoundInteract=interact;
+interact=function(){
+  const target=nearby?.action,wasOpen=nearby?.opened;
+  originalSoundInteract();
+  if(target==='chest'&&!wasOpen)actionSound('loot');
+  else if(target==='enter'||target==='exit')actionSound('portal');
+  else if(target==='relic')actionSound('skill');
+};
+function toggleActionAudio(){
+  save.settings.audio=save.settings.audio==='off'?'on':'off';
+  actionAudio.enabled=save.settings.audio!=='off';
+  if(actionAudio.enabled)initActionAudio();
+  const b=$('audioBtn');if(b)b.textContent='SOUND EFFECTS: '+(actionAudio.enabled?'ON':'OFF');
+  persist();notify('Sound effects '+(actionAudio.enabled?'enabled':'disabled'));
+}
+
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
+$('audioBtn').onclick=toggleActionAudio;
 $('modelsBtn').onclick=toggleAssetModels;
 $('qualityBtn').onclick=()=>{const presets=['low','medium','high'];const next=presets[(presets.indexOf(visualFX.quality)+1)%presets.length];setGraphicQuality(next)};
 // Render a decorative 3D title backdrop so first load isn't a blank screen.
