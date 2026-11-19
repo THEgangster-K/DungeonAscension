@@ -1,4 +1,19 @@
-# Dungeon Ascension — Luminous Armour v1.1
+# Dungeon Ascension — Wayfinder v1.2
+
+## v1.2 — Combat clarity and navigation
+
+- A compass in the HUD points toward the dungeon entrance in the hub, the Bone Guardian during a run, and the exit portal after the boss is defeated. Shows approximate world-space distance
+- Stronger outlines around enemy attack telegraphs that use the existing authoritative hit radius, making danger zones more readable without altering their collision checks
+- Smoother visual sword follow-through after successful attacks, retaining the forged, tapered v1.1 sword geometry
+- Same readable lighting, detailed knight armour, effects, and Low / Medium / High graphics settings from v1.1
+- Existing loot, contracts, Elite Hunts, abilities, Nightmare movement math, boss mechanics and save progress remain intact
+- Added compass bearing unit tests and integration checks for the new UI
+
+**Verification:** Source JavaScript parsing and math/integration checks are available; an actual browser gameplay playthrough has not been completed. Refresh the game with Ctrl + Shift + R if the title still says v1.1.
+
+**Play:** https://dungeonascension.onrender.com
+
+## Previous release — Luminous Armour v1.1
 
 ## v1.1 — Visibility without reducing graphics
 
