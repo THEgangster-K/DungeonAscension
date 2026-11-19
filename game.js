@@ -1034,6 +1034,284 @@ refreshReforgedUI=function(){
   if(eliteHunt.active||eliteHunt.complete)updateEliteHUD();
 };
 
+
+// v1.0 VISUAL ASCENSION — reusable materials, layered architecture and pooled atmospheric FX.
+// All changes are cosmetic. No persistent progression or combat geometry is changed.
+const ascend={
+  embers:null,emberPositions:null,emberVelocities:null,
+  lights:[],clock:0,environmentTime:0,portalDiscs:[],roomDecor:[],
+  flash:0,killBurst:null,heroMotion:0,quality:'medium',zoneTag:'',
+  goldDust:null
+};
+function ascendTextures(){
+  // Deterministic hand-painted stone texture, generated locally at startup.
+  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+  const c=canvas.getContext('2d');
+  if(!c)return;
+  c.fillStyle='#8b8c97';c.fillRect(0,0,256,256);
+  let state=75921;const random=()=>{state=(Math.imul(1664525,state)+1013904223)>>>0;return state/4294967296};
+  for(let y=0;y<256;y+=2){
+    for(let x=0;x<256;x+=2){
+      const n=Math.floor(65+random()*55);
+      c.fillStyle='rgba('+n+','+(n+1)+','+(n+8)+','+(.10+random()*.22)+')';
+      c.fillRect(x,y,2,2);
+    }
+  }
+  for(let row=0;row<8;row++){
+    const y=row*32;
+    c.strokeStyle='rgba(12,16,29,.32)';c.lineWidth=2;
+    c.beginPath();c.moveTo(0,y);c.lineTo(256,y);c.stroke();
+    for(let j=0;j<5;j++){
+      const x=(j*61+(row%2)*28)%256;
+      c.beginPath();c.moveTo(x,y);c.lineTo(x+random()*11-5,y+32);c.stroke();
+    }
+  }
+  for(let j=0;j<180;j++){
+    const x=random()*256,y=random()*256,r=.4+random()*2;
+    c.fillStyle=random()>.5?'#bec0ca30':'#17192730';
+    c.fillRect(x,y,r,r);
+  }
+  const tex=new THREE.CanvasTexture(canvas);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  tex.wrapS=THREE.RepeatWrapping;tex.wrapT=THREE.RepeatWrapping;
+  tex.repeat.set(2,2);tex.anisotropy=4;
+  for(const m of [stone,stone2,floorMat,carved]){
+    m.map=tex;m.roughness=.96;m.needsUpdate=true;
+  }
+  const metal=goldMat;metal.roughness=.25;
+  runeMat.emissiveIntensity=1.15;
+}
+function ascendBeam(x,z,side=1){
+  const root=new THREE.Group();root.position.set(x,0,z);scene.add(root);
+  box(.42,4.8,.58,stone2,0,2.45,0,root);
+  box(.66,.26,.78,bronze,0,4.9,0,root);
+  box(.63,.22,.73,bronze,0,.31,0,root);
+  for(let i=0;i<3;i++){
+    const pin=mesh(new THREE.IcosahedronGeometry(.11,0),goldMat,root);
+    pin.position.set(side*.29,.95+i*1.17,0);
+  }
+  const ornament=mesh(new THREE.TorusGeometry(.26,.045,6,12),runeMat,root);
+  ornament.rotation.y=Math.PI/2;ornament.position.set(side*.27,3.65,0);
+  return root;
+}
+function ascendCoffin(x,z,rotation=0){
+  const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rotation;scene.add(g);
+  box(1.4,.36,2.3,stone2,0,.22,0,g);
+  const slab=box(1.23,.24,2.04,carved,0,.51,0,g);slab.rotation.z=.025;
+  for(const dz of [-.7,.7]){
+    box(1.3,.05,.12,bronze,0,.64,dz,g);
+  }
+  const seal=mesh(new THREE.OctahedronGeometry(.22),runeMat,g);seal.position.set(0,.77,0);
+}
+function ascendCage(x,z){
+  const root=new THREE.Group();root.position.set(x,0,z);scene.add(root);
+  cylinder(.55,.58,.13,bronze,0,.06,0,root,10);
+  for(let j=0;j<6;j++){
+    const a=j*Math.PI/3;
+    cylinder(.045,.045,2.25,midnight,Math.cos(a)*.46,1.2,Math.sin(a)*.46,root,5);
+  }
+  cylinder(.55,.55,.14,bronze,0,2.37,0,root,10);
+  const ring=mesh(new THREE.TorusGeometry(.24,.075,6,10),goldMat,root);
+  ring.rotation.x=Math.PI/2;ring.position.y=2.57;
+}
+function ascendVaultDetail(){
+  const dungeon=world==='dungeon';
+  const regions=dungeon?rooms.map((r,i)=>({z:r.z,depth:i,boss:i===rooms.length-1})):
+    [{z:-15,depth:0,boss:false},{z:11,depth:0,boss:false}];
+  // Architectural mass near outer edges, never added to the gameplay collision set.
+  for(const r of regions){
+    const z=r.z,i=r.depth;
+    for(const side of [-1,1]){
+      const x=side*(dungeon?8.2:18.8);
+      for(const dz of [-3.5,3.5])ascendBeam(x,z+dz,side);
+      if(dungeon){
+        for(const dz of [-6.4,6.4]){
+          const lintel=box(.95,.26,2.1,bronze,x,4.75,z+dz);
+          lintel.rotation.y=0;
+        }
+      }
+    }
+    if(dungeon&&i>0){
+      const left=i%2===0?-1:1;
+      ascendCoffin(left*5.8,z+2.5,i*.17);
+      if(i%3===0)ascendCage(-left*6.4,z-3.7);
+      // An overhead transverse rib, with open space beneath the camera.
+      const bar=box(17,.30,.52,stone2,0,5.05,z);
+      bar.receiveShadow=true;
+      for(const x of [-4,4]){
+        const disc=mesh(new THREE.OctahedronGeometry(.17),runeMat);
+        disc.position.set(x,4.8,z);
+      }
+    }
+    if(dungeon&&r.boss){
+      for(const x of [-5.7,5.7]){
+        const plinth=cylinder(.8,1,1.25,carved,x,.62,z+4,scene,8);
+        const gem=mesh(new THREE.IcosahedronGeometry(.45,1),runeMat);
+        gem.position.set(x,1.7,z+4);ascend.roomDecor.push(gem);
+      }
+    }
+  }
+}
+function ascendAmbient(){
+  if(!scene||!renderer)return;
+  // Only a limited number of dynamic particles: one draw call.
+  const high=save.settings.quality==='high',low=save.settings.quality==='low';
+  const n=low?44:high?145:84;
+  const geometry=new THREE.BufferGeometry();
+  const coords=new Float32Array(n*3),drift=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const k=i*3;coords[k]=rand(-19,19);coords[k+1]=rand(.2,4.8);coords[k+2]=rand(-20,20);
+    drift[k]=rand(-.3,.3);drift[k+1]=rand(.03,.25);drift[k+2]=rand(-.3,.3);
+  }
+  geometry.setAttribute('position',new THREE.BufferAttribute(coords,3));
+  const material=new THREE.PointsMaterial({color:world==='hub'?0xeabb7e:0x9ebcf2,size:low?.065:.085,transparent:true,opacity:.65,depthWrite:false,sizeAttenuation:true,blending:THREE.AdditiveBlending});
+  const particles=new THREE.Points(geometry,material);
+  particles.frustumCulled=false;scene.add(particles);
+  ascend.embers=particles;ascend.emberPositions=coords;ascend.emberVelocities=drift;
+}
+function ascendParticles(dt){
+  const obj=ascend.embers,arr=ascend.emberPositions,vel=ascend.emberVelocities;
+  if(!obj||!arr||!vel)return;
+  const centerX=player.position.x,centerZ=player.position.z;
+  for(let i=0;i<arr.length;i+=3){
+    arr[i]+=vel[i]*dt;arr[i+1]+=vel[i+1]*dt;arr[i+2]+=vel[i+2]*dt;
+    if(arr[i+1]>5.6){arr[i+1]=.18;arr[i]=centerX+rand(-12,12);arr[i+2]=centerZ+rand(-12,12)}
+    if(Math.abs(arr[i]-centerX)>24)arr[i]=centerX+rand(-16,16);
+    if(Math.abs(arr[i+2]-centerZ)>24)arr[i+2]=centerZ+rand(-16,16);
+  }
+  obj.geometry.attributes.position.needsUpdate=true;
+}
+function ascendLights(){
+  // Maintain atmospheric lights near the camera while culling distant point lights.
+  const lightPool=scene.children.filter(o=>o.isPointLight);
+  const closest=lightPool.sort((a,b)=>a.position.distanceToSquared(player.position)-b.position.distanceToSquared(player.position));
+  const max=save.settings.quality==='low'?5:save.settings.quality==='high'?11:7;
+  for(let i=0;i<closest.length;i++)closest[i].visible=i<max;
+}
+function ascendPulse(x,y,z,color=0xffcc79,size=1){
+  if(!scene||world!=='dungeon'&&state!=='playing')return;
+  if(effects.length>70)return;
+  const geo=new THREE.RingGeometry(.2*size,.3*size,20);
+  const material=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.88,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+  const ring=mesh(geo,material);ring.rotation.x=-Math.PI/2;
+  ring.position.set(x,y,z);
+  effects.push({g:ring,time:.36,initial:.36,expand:true});
+}
+function ascendImpact(x,y,z,boss=false){
+  ascendPulse(x,.15,z,boss?0xffb77e:0xb8d7ff,boss?1.3:.65);
+  ascend.flash=Math.min(.55,ascend.flash+.2);
+  const overlay=$('cinematicFlash');
+  if(overlay)overlay.style.opacity=ascend.flash.toFixed(2);
+}
+function ascendHeroDetails(){
+  if(!player)return;
+  // The original reliable visible character remains the authoritative player.
+  const helm=mesh(new THREE.SphereGeometry(.37,10,8),shadeSteel,player);
+  helm.position.set(0,1.84,-.035);helm.scale.set(1,1.07,.9);
+  const slit=box(.48,.08,.13,midnight,0,1.83,.3,player);
+  const peak=mesh(new THREE.ConeGeometry(.12,.45,6),goldMat,player);peak.position.set(0,2.36,0);
+  for(const side of [-1,1]){
+    const shoulder=mesh(new THREE.DodecahedronGeometry(.29),shadeSteel,player);
+    shoulder.position.set(side*.59,1.48,0);
+    const knee=box(.29,.26,.39,bronze,side*.23,.56,.29,player);
+  }
+  const core=mesh(new THREE.OctahedronGeometry(.17),runeMat,player);
+  core.position.set(0,1.36,.48);
+  sword.add(box(.20,.60,.08,bronze,0,.53,-.07,sword));
+}
+const originalAscendInit=initScene;
+initScene=function(){
+  originalAscendInit();
+  ascendTextures();
+  ascendHeroDetails();
+  const shield=$('qualityNotice');if(shield)shield.textContent='VISUAL ASCENSION ACTIVE';
+};
+const originalAscendDungeon=buildDungeon;
+buildDungeon=function(){
+  originalAscendDungeon();
+  ascendVaultDetail();
+  ascendAmbient();
+  ascendLights();
+  $('visualZone')?.classList.remove('hidden');
+};
+const originalAscendHub=buildHub;
+buildHub=function(){
+  originalAscendHub();
+  ascendVaultDetail();
+  ascendAmbient();
+  ascendLights();
+  $('visualZone')?.classList.add('hidden');
+};
+const originalAscendClear=clearWorld;
+clearWorld=function(){
+  ascend.embers=null;ascend.emberPositions=null;ascend.emberVelocities=null;ascend.roomDecor=[];
+  ascend.portalDiscs=[];ascend.lights=[];
+  originalAscendClear();
+};
+const originalAscendAttack=performAttack;
+performAttack=function(){
+  const target=nearestEnemy(3.15);
+  originalAscendAttack();
+  if(target)ascendImpact(target.x,1.2,target.z,target.type==='boss');
+};
+const originalAscendSkill=activateSkill;
+activateSkill=function(n){
+  const before=skillCD[n];
+  originalAscendSkill(n);
+  if(skillCD[n]>before){
+    const palette=[0xf8bc7e,0xba9aff,0x64cfff,0x78d9ab];
+    ascendPulse(player.position.x,.2,player.position.z,palette[n],n===1?2.1:1.4);
+  }
+};
+const originalAscendHurt=hurt;
+hurt=function(amount){
+  const before=save.health;originalAscendHurt(amount);
+  if(save.health<before)ascend.flash=Math.min(.45,ascend.flash+.2);
+};
+const originalAscendDefeat=defeatEnemy;
+defeatEnemy=function(e){
+  const boss=e.type==='boss',elite=!!e.elite;
+  const x=e.x,z=e.z;
+  originalAscendDefeat(e);
+  ascendPulse(x,.1,z,boss?0xffb45c:elite?0xecc277:0xa4b7fa,boss?2.7:elite?1.9:.95);
+  if(boss||elite){
+    const flash=$('victoryBanner');
+    if(flash){
+      flash.textContent=boss?'GUARDIAN VANQUISHED': 'ELITE CONQUERED';
+      flash.classList.remove('show');
+      void flash.offsetWidth;
+      flash.classList.add('show');
+    }
+  }
+};
+const originalAscendQuality=setGraphicQuality;
+setGraphicQuality=function(name,announce=true){
+  originalAscendQuality(name,announce);
+  if(world==='dungeon'||world==='hub'){
+    if(ascend.embers){
+      scene.remove(ascend.embers);
+      ascend.embers.geometry.dispose();ascend.embers.material.dispose();ascend.embers=null;
+      ascendAmbient();
+    }
+    ascendLights();
+  }
+};
+const originalAscendUpdatePlayer=updatePlayer;
+updatePlayer=function(dt){
+  originalAscendUpdatePlayer(dt);
+  ascend.environmentTime+=dt;
+  if(ascend.embers)ascendParticles(dt);
+  if(ascend.environmentTime>.35){
+    ascend.environmentTime=0;
+    ascendLights();
+    const q=$('qualityNotice');if(q)q.textContent=(save.settings.quality||'medium').toUpperCase()+' VISUAL PRESET';
+  }
+  if(ascend.flash>0){
+    ascend.flash=Math.max(0,ascend.flash-dt*1.8);
+    const overlay=$('cinematicFlash');if(overlay)overlay.style.opacity=ascend.flash.toFixed(2);
+  }
+};
+
 $('playBtn').onclick=startGame;$('resetFromTitle').onclick=()=>{if(confirm('Erase ALL progress on this browser? This cannot be undone unless you have exported a backup.')){save=defaultSave();persist();notify('Save reset')}};$('closePanel').onclick=closePanel;$('resumeBtn').onclick=pause;$('inventoryBtn').onclick=()=>openPanel('inventory');$('upgradesBtn').onclick=()=>openPanel('upgrade');$('helpBtn').onclick=()=>openPanel('help');$('saveBtn').onclick=()=>{persist();notify('Saved successfully')};$('quitBtn').onclick=()=>{persist();$('pauseScreen').classList.add('hidden');$('hud').classList.add('hidden');$('titleScreen').classList.remove('hidden');state='title'};$('exportBtn').onclick=()=>{persist();const blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`dungeon-ascension-save-level-${save.level}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),500)};$('importInput').onchange=async e=>{const file=e.target.files?.[0];if(!file)return;try{if(file.size>500000)throw Error('File too large');const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.inventory)||typeof data.level!=='number')throw Error('Invalid save format');const s=cleanSave(data);if(!s)throw Error('Invalid save');if(confirm(`Load Level ${s.level} save? This replaces current progress.`)){save=s;persist();$('pauseScreen').classList.add('hidden');buildHub();notify('Save imported successfully!')}}catch(err){alert(`Could not import save: ${err.message}`)}e.target.value=''};
 $('modelsBtn').onclick=toggleAssetModels;
 $('qualityBtn').onclick=()=>{const presets=['low','medium','high'];const next=presets[(presets.indexOf(visualFX.quality)+1)%presets.length];setGraphicQuality(next)};
