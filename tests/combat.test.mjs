@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer,eliteBountyReward,eliteHuntTierEligible} from '../combat-math.mjs';
+import {attackRadius,chaseStep,hitsWarning,stopDistance,moveAwayFromPlayer,eliteBountyReward,eliteHuntTierEligible,objectiveBearing} from '../combat-math.mjs';
 
 test('Nightmare speed cannot overshoot player or stop radius',()=>{
   let x=-10,z=0;
@@ -43,4 +43,15 @@ test('elite tier and reward input are bounded',()=>{
   assert.equal(eliteHuntTierEligible(-1),false);
   assert.deepEqual(eliteBountyReward(0,0),eliteBountyReward(1,1));
   assert.deepEqual(eliteBountyReward(100,200),eliteBountyReward(5,3));
+});
+
+test('v1.2 compass follows the actual camera forward direction',()=>{
+ const close=(a,b)=>assert.ok(Math.abs(a-b)<.000001,`${a} != ${b}`);
+ close(objectiveBearing(0,0,0,-10,0).angle,0);
+ close(objectiveBearing(0,0,10,0,0).angle,Math.PI/2);
+ close(objectiveBearing(0,0,-10,0,0).angle,-Math.PI/2);
+ close(objectiveBearing(0,0,-10,0,Math.PI/2).angle,0);
+ close(objectiveBearing(0,0,0,-10,0).distance,10);
+ close(objectiveBearing(0,0,0,0,0).distance,0);
+ assert.ok(Number.isFinite(objectiveBearing(NaN,0,10,10,0).angle));
 });
