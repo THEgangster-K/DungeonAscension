@@ -1115,6 +1115,8 @@ function ascendCage(x,z){
   ring.rotation.x=Math.PI/2;ring.position.y=2.57;
 }
 function ascendVaultDetail(){
+  // Low preset omits extra architectural props during the next world generation.
+  if(save.settings.quality==='low')return;
   const dungeon=world==='dungeon';
   const regions=dungeon?rooms.map((r,i)=>({z:r.z,depth:i,boss:i===rooms.length-1})):
     [{z:-15,depth:0,boss:false},{z:11,depth:0,boss:false}];
@@ -1370,6 +1372,11 @@ buildHub=function(){
 };
 const originalAscendClear=clearWorld;
 clearWorld=function(){
+  if(ascend.embers){
+    scene.remove(ascend.embers);
+    ascend.embers.geometry.dispose();
+    ascend.embers.material.dispose();
+  }
   ascend.embers=null;ascend.emberPositions=null;ascend.emberVelocities=null;ascend.roomDecor=[];
   ascend.portalDiscs=[];ascend.lights=[];
   originalAscendClear();
