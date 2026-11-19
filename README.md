@@ -1,7 +1,23 @@
+## v0.8 — Nightmare Combat Repair
+Fix for reports on tier-five Nightmare runs where enemies ran past the player or appeared to attack from positions different from their visible model.
+
+- Added shared, tested enemy chase math that cannot overshoot the player's stop radius, even with frame hitches or Nightmare movement speeds
+- All enemies stop and attack from consistent world-space positions; nearby monsters separate instead of overlapping the player
+- Melee attack warnings originate at the enemy; ranged attacks and shockwaves lock the intended target position, and damage uses the exact same radius as the warning
+- Red warning zones match the damage area; enemy body hitbox debugging can be enabled with **H**
+- **T** toggles auto-attacks; with auto-attacks off, **F** or left-click (after pointer lock) makes a manual basic attack
+- Imported third-party enemy models default to **OFF once** for old and new saves to avoid drifting animation mismatches; they remain optional in the pause menu
+- A shared pure combat geometry module (`combat-math.mjs`), regression test file and GitHub Actions test command are included
+- Existing save key (`dungeon-ascension-v0.1`) and all permanent progression remain intact
+
+**To test:** Refresh with Ctrl+Shift+R, select tier 5 Nightmare, use **H** to see enemy collision positions, and test whether enemies approach and strike from the expected location. The imported model setting can be turned back on in the pause menu, but those models should still be considered experimental until verified.
+
+**Verification:** Source syntax checked, shared combat math passed 1,008 local assertions in the connected tools, and a Node test suite is included in the GitHub workflow. These are not a substitute for a full interactive browser playthrough or confirmed GitHub Actions run.
+
 ## v0.7.1 — Player visibility hotfix
 The optional third-party knight GLB could hide the original character without displaying a valid replacement, leaving only the sword visible. The playable hero now always uses the built-in animated model until the imported knight's rig, orientation, bounds, and animation have been fully validated. Detailed GLB enemy models remain optional and can be disabled from the pause menu. This change preserves the same save key and all existing gameplay features.
 
-# Dungeon Ascension — Shadows of the Deep v0.7
+# Dungeon Ascension — Nightmare Combat Repair v0.8
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
