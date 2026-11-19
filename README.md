@@ -1,4 +1,21 @@
-## v0.8 — Nightmare Combat Repair
+# Dungeon Ascension — Elite Hunts v0.9
+
+## v0.9 Elite Hunts and combat stability
+Each dungeon now includes one optional marked elite enemy with extra health, slightly higher attack damage, and a guaranteed completion bounty. This is an additional challenge, not a requirement to defeat the main boss or use the exit portal.
+
+- Elite target is marked in the world and circled in gold on the minimap
+- New Elite Hunt HUD shows target health and gold/gem bounty
+- Rewards scale with dungeon tier and the Explorer / Veteran / Nightmare multiplier
+- Elite bounty is awarded once per dungeon run after the target is defeated
+- The existing combat movement, hitbox warnings, and enemy stop distances remain unchanged from v0.8
+- Preserves all existing equipment, gold, gems, dungeon progress, contracts, and the `dungeon-ascension-v0.1` save key
+- Added reward-scaling tests to the combat regression suite
+
+**Testing status:** JavaScript syntax and source integration checks passed; 2,430 local geometry/reward assertions passed. A real browser playthrough of this update has not yet been completed, so game stability is not guaranteed.
+
+**How to play:** Enter a dungeon contract and follow the gold marker on the minimap to find the elite. Its health is shown in the Elite Hunt panel. Defeat it to automatically claim bonus gold, gems, and XP. You may still finish the dungeon without completing the elite bounty.
+
+## Previously: v0.8 — Nightmare Combat Repair
 Fix for reports on tier-five Nightmare runs where enemies ran past the player or appeared to attack from positions different from their visible model.
 
 - Added shared, tested enemy chase math that cannot overshoot the player's stop radius, even with frame hitches or Nightmare movement speeds
@@ -17,7 +34,7 @@ Fix for reports on tier-five Nightmare runs where enemies ran past the player or
 ## v0.7.1 — Player visibility hotfix
 The optional third-party knight GLB could hide the original character without displaying a valid replacement, leaving only the sword visible. The playable hero now always uses the built-in animated model until the imported knight's rig, orientation, bounds, and animation have been fully validated. Detailed GLB enemy models remain optional and can be disabled from the pause menu. This change preserves the same save key and all existing gameplay features.
 
-# Dungeon Ascension — Nightmare Combat Repair v0.8
+
 
 A browser-based 3D fantasy dungeon grinding simulator built with Three.js.
 
