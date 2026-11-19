@@ -188,3 +188,13 @@ button:focus-visible{outline:3px solid #f7cf7a;outline-offset:2px}
 
 #audioBtn{border:1px solid #d4b58166;background:linear-gradient(125deg,#292b42,#1a2031);color:#f3ddbc;letter-spacing:.07em}
 #audioBtn:hover{filter:brightness(1.16)}
+
+/* v1.1 Luminous Armour: preserve a dark fantasy atmosphere without crushed blacks */
+#game canvas{filter:contrast(1.035) saturate(1.13) brightness(1.12)}
+#vignette{background:radial-gradient(ellipse 90% 87% at 50% 49%,transparent 47%,rgba(8,10,23,.13) 77%,rgba(5,7,15,.30) 100%);mix-blend-mode:normal}
+#game{background:linear-gradient(140deg,#303a51,#242d40)}
+#crosshair{color:#f5e6cd;text-shadow:0 0 7px #070916,0 0 3px #000}
+#bossPanel{border-color:#e7ba7fbb}
+#bossBarFill{filter:brightness(1.15)}
+#eliteHuntPanel{border-color:#d4a95a99}
+#mapNote{color:#d8d8e8}
