@@ -736,6 +736,9 @@ function setActorAnimation(actor,key){
 }
 async function placeAssetModel(parent,key,actorTag){
   try{
+    // The external knight is not yet reliably positioned across devices.
+    // Never hide the playable hero for an unverified asynchronous asset.
+    if(key==='hero')return;
     if(save.settings.models==='off')return;
     if(assetRuntime.actors.some(a=>a.root===parent))return;
     const data=await fetchAssetModel(key);
@@ -752,7 +755,8 @@ async function placeAssetModel(parent,key,actorTag){
       mixer:data.animations?.length?new THREE.AnimationMixer(sceneModel):null,
       clips:data.animations||[],state:'',action:null,lastX:parent.position.x,lastZ:parent.position.z
     };
-    // Hide procedural artwork only after successful scene replacement.
+    // Hide procedural artwork only after a validated replacement exists.
+    if(!sceneModel.children.length || !Number.isFinite(sceneModel.scale.x) || sceneModel.scale.x<=0){parent.remove(sceneModel);return;}
     for(const child of parent.children){
       if(child===sceneModel)continue;
       if(key==='hero'&&child===sword)continue;
@@ -788,6 +792,7 @@ function updateAssetActors(dt){
 
 function toggleAssetModels(){
   const enabled=save.settings.models==='off';
+  restorePlayableHero();
   save.settings.models=enabled?'on':'off';
   for(const actor of assetRuntime.actors){
     actor.model.visible=enabled;
@@ -795,7 +800,6 @@ function toggleAssetModels(){
     if(actor.key==='hero'&&sword)sword.visible=true;
   }
   if(enabled){
-    if(!assetRuntime.actors.some(a=>a.key==='hero'))void placeAssetModel(player,'hero',null);
     for(const e of enemies)if(e.alive&&!assetRuntime.actors.some(a=>a.root===e.g))void placeAssetModel(e.g,e.type,e);
   }
   const button=$('modelsBtn');
@@ -804,10 +808,25 @@ function toggleAssetModels(){
   showAssetStatus();persist();notify(enabled?'Detailed models enabled':'Lightweight characters enabled');
 }
 
+function restorePlayableHero(){
+  if(!player)return;
+  // Keep the hero's original articulated model as a permanent safe fallback.
+  for(let i=assetRuntime.actors.length-1;i>=0;i--){
+    const actor=assetRuntime.actors[i];
+    if(actor.key!=='hero')continue;
+    actor.mixer?.stopAllAction();
+    if(actor.model?.parent)actor.model.parent.remove(actor.model);
+    assetRuntime.actors.splice(i,1);
+  }
+  for(const child of player.children)child.visible=true;
+  if(sword)sword.visible=true;
+}
 const beforeSceneAsset=initScene;
 initScene=function(){
   beforeSceneAsset();
-  void placeAssetModel(player,'hero',null);
+  restorePlayableHero();
+  assetRuntime.status='PLAYER MODEL SAFE MODE';
+  showAssetStatus();
 };
 const beforeSpawnAsset=spawnEnemy;
 spawnEnemy=function(x,z,type){
@@ -819,6 +838,12 @@ const beforePlayerAsset=updatePlayer;
 updatePlayer=function(dt){
   beforePlayerAsset(dt);
   if(world!=='dungeon')updateAssetActors(dt);
+  // A GLB or animation must never leave the third-person hero invisible.
+  if(camMode==='third' && player && player.visible){
+    let hasVisibleBody=false;
+    for(const child of player.children){if(child!==sword&&child.visible){hasVisibleBody=true;break}}
+    if(!hasVisibleBody)restorePlayableHero();
+  }
 };
 const beforeEnemyAsset=updateEnemies;
 updateEnemies=function(dt){
