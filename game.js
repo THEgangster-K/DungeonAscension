@@ -1219,6 +1219,131 @@ function ascendHeroDetails(){
   core.position.set(0,1.36,.48);
   sword.add(box(.20,.60,.08,bronze,0,.53,-.07,sword));
 }
+
+const ascensionTokens={portals:[],chests:[],killSparks:[],frame:0};
+const arcanePurple=new THREE.MeshBasicMaterial({color:0xb9a0ff,transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending});
+const jewelCyan=new THREE.MeshStandardMaterial({color:0x72d6df,emissive:0x285f92,emissiveIntensity:1.7,metalness:.27,roughness:.16});
+const jewelAmber=new THREE.MeshStandardMaterial({color:0xe3b46d,emissive:0x7e4b20,emissiveIntensity:1.6,metalness:.25,roughness:.22});
+const originalAscendPortal=createPortal;
+createPortal=function(x,z,action){
+  const g=originalAscendPortal(x,z,action);
+  const ring=mesh(new THREE.TorusGeometry(1.03,.052,7,42),arcanePurple,g);
+  ring.position.y=1.33;
+  const orbital=mesh(new THREE.TorusGeometry(.84,.025,5,34),arcanePurple,g);
+  orbital.position.y=1.33;orbital.rotation.x=.4;
+  const heart=mesh(new THREE.IcosahedronGeometry(.22,1),jewelCyan,g);
+  heart.position.y=1.33;
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3;
+    const node=mesh(new THREE.OctahedronGeometry(.10),runeMat,g);
+    node.position.set(Math.cos(a)*1.46,1.34+Math.sin(a)*1.37,.05);
+  }
+  ascensionTokens.portals.push({g,ring,orbital,heart});
+  return g;
+};
+const originalAscendChest=spawnChest;
+spawnChest=function(x,z){
+  originalAscendChest(x,z);
+  const item=interactables[interactables.length-1];
+  if(!item||item.action!=='chest')return;
+  const g=item.g;
+  for(const side of [-1,1]){
+    box(.14,.50,.77,bronze,side*.48,.48,0,g);
+    const handle=mesh(new THREE.TorusGeometry(.075,.023,6,10),goldMat,g);
+    handle.position.set(side*.32,.68,.397);
+  }
+  const gem=mesh(new THREE.OctahedronGeometry(.18),jewelAmber,g);
+  gem.position.set(0,.84,0);
+  const lock=box(.20,.28,.10,goldMat,0,.55,.42,g);
+  ascensionTokens.chests.push({item,gem});
+};
+const originalAscendEnemyVisual=spawnEnemy;
+spawnEnemy=function(x,z,type){
+  originalAscendEnemyVisual(x,z,type);
+  const e=enemies[enemies.length-1];
+  if(!e||!e.g)return;
+  const g=e.g;
+  if(e.type==='boss'){
+    const crown=mesh(new THREE.TorusGeometry(.55,.085,7,14),jewelAmber,g);crown.position.y=2.34;crown.rotation.x=Math.PI/2;
+    const spine=mesh(new THREE.ConeGeometry(.31,.78,6),shadeSteel,g);spine.position.set(0,1.15,-.4);spine.rotation.x=-.25;
+    for(const side of [-1,1]){
+      const horn=mesh(new THREE.ConeGeometry(.17,.73,6),carved,g);
+      horn.position.set(side*.38,2.16,-.10);horn.rotation.z=side*.33;
+    }
+  }else if(e.type==='brute'){
+    for(const side of [-1,1]){
+      const spall=mesh(new THREE.DodecahedronGeometry(.37),shadeSteel,g);
+      spall.position.set(side*.58,1.49,-.07);
+      const spike=mesh(new THREE.ConeGeometry(.15,.47,6),bronze,g);
+      spike.position.set(side*.72,1.86,-.08);spike.rotation.z=side*.36;
+    }
+    const belt=box(.82,.17,.55,bronze,0,.83,0,g);
+  }else if(e.type==='archer'){
+    const bow=mesh(new THREE.TorusGeometry(.58,.047,6,18,Math.PI),jewelAmber,g);
+    bow.position.set(.79,1.07,.20);bow.rotation.y=Math.PI/2;
+    const quiver=mesh(new THREE.CylinderGeometry(.20,.15,.74,7),shadeLeather,g);
+    quiver.position.set(-.42,1.45,-.39);quiver.rotation.z=.25;
+  }else{
+    const skullRune=mesh(new THREE.OctahedronGeometry(.14),jewelCyan,g);
+    skullRune.position.set(0,1.93,.24);
+  }
+};
+const originalAscendInteract=interact;
+interact=function(){
+  const target=nearby;
+  const chest=target?.action==='chest'&&!target.opened;
+  const portal=target?.action==='exit'&&bossDefeated;
+  originalAscendInteract();
+  if(chest&&target.opened){
+    ascendPulse(target.x,.12,target.z,0xf8ca75,2.1);
+    ascend.flash=Math.min(.5,ascend.flash+.17);
+    const el=$('treasureToast');
+    if(el){
+      el.textContent='TREASURE DISCOVERED';
+      el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+    }
+  }
+  if(portal){
+    const el=$('victoryBanner');
+    if(el){el.textContent='DUNGEON CLEARED';el.classList.remove('show');void el.offsetWidth;el.classList.add('show')}
+  }
+};
+const originalAscendDamage=damageEnemy;
+damageEnemy=function(e,n,critChance=.12){
+  if(!e||!e.alive)return;
+  originalAscendDamage(e,n,critChance);
+  if(ascend.embers && (ascensionTokens.frame%2===0 || e.type==='boss')){
+    ascendPulse(e.x,.10,e.z,e.elite?0xf8cd72:0xc0d9ff,e.type==='boss'?.8:.42);
+  }
+};
+function ascendAnimateWorld(dt){
+  ascensionTokens.frame++;
+  const t=gameTick;
+  for(const p of ascensionTokens.portals){
+    if(!p.g.parent)continue;
+    p.ring.rotation.z=t*.35;
+    p.orbital.rotation.z=-t*.52;
+    p.orbital.rotation.x=.4+Math.sin(t*.7)*.11;
+    p.heart.rotation.y=t*.9;
+    p.heart.position.y=1.33+Math.sin(t*1.8)*.11;
+  }
+  for(const chest of ascensionTokens.chests){
+    if(!chest.item.g.parent||chest.item.opened)continue;
+    chest.gem.rotation.y+=dt*.5;
+    chest.gem.position.y=.84+Math.sin(t*2)*.04;
+  }
+  for(const p of ascend.roomDecor){
+    p.rotation.y+=dt*.25;
+    p.position.y+=Math.cos(t*1.6)*dt*.018;
+  }
+}
+const originalAscendClean=clearWorld;
+clearWorld=function(){
+  ascensionTokens.portals=[];
+  ascensionTokens.chests=[];
+  originalAscendClean();
+};
+
 const originalAscendInit=initScene;
 initScene=function(){
   originalAscendInit();
@@ -1300,6 +1425,7 @@ const originalAscendUpdatePlayer=updatePlayer;
 updatePlayer=function(dt){
   originalAscendUpdatePlayer(dt);
   ascend.environmentTime+=dt;
+  ascendAnimateWorld(dt);
   if(ascend.embers)ascendParticles(dt);
   if(ascend.environmentTime>.35){
     ascend.environmentTime=0;
